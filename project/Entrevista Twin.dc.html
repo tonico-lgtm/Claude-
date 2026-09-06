@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Spectral:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0b0c0e;color:#e4e2dd;font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:13px;line-height:1.5}
+*,*::before,*::after{box-sizing:border-box}
+input,button,textarea,select{font:inherit;color:inherit}
+a{color:oklch(0.74 0.11 65)}a:hover{color:oklch(0.82 0.11 65)}
+::selection{background:oklch(0.74 0.11 65 / .3)}
+::placeholder{color:#6e7178}
+:focus{outline:none}
+:focus-visible{outline:1px solid oklch(0.74 0.11 65);outline-offset:2px}
+@keyframes twPulse{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes twBar{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+</style>
+</helmet>
+<div style="padding:28px 32px 48px;display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:11px;color:#6e7178">
+  <span style="margin-right:4px">Protótipo · ir para</span>
+  <button type="button" onClick="{{ jumpSetup }}" style="font-size:11px;padding:3px 9px;border:1px solid #2c3037;border-radius:999px;background:transparent;color:#8d9098;cursor:pointer" style-hover="color:#e4e2dd;border-color:#8d9098">Setup</button>
+  <button type="button" onClick="{{ jumpSetupValid }}" style="font-size:11px;padding:3px 9px;border:1px solid #2c3037;border-radius:999px;background:transparent;color:#8d9098;cursor:pointer" style-hover="color:#e4e2dd;border-color:#8d9098">Setup com chaves válidas</button>
+  <button type="button" onClick="{{ jumpSession }}" style="font-size:11px;padding:3px 9px;border:1px solid #2c3037;border-radius:999px;background:transparent;color:#8d9098;cursor:pointer" style-hover="color:#e4e2dd;border-color:#8d9098">Sessão em curso (bloco 3)</button>
+  <button type="button" onClick="{{ jumpSessionWrite }}" style="font-size:11px;padding:3px 9px;border:1px solid #2c3037;border-radius:999px;background:transparent;color:#8d9098;cursor:pointer" style-hover="color:#e4e2dd;border-color:#8d9098">Sessão em modo escrita</button>
+  <button type="button" onClick="{{ jumpDone }}" style="font-size:11px;padding:3px 9px;border:1px solid #2c3037;border-radius:999px;background:transparent;color:#8d9098;cursor:pointer" style-hover="color:#e4e2dd;border-color:#8d9098">Conclusão</button>
+  <span style="margin:0 4px;color:#2c3037">|</span>
+  <button type="button" onClick="{{ reset }}" style="font-size:11px;padding:3px 9px;border:0;background:transparent;color:#6e7178;cursor:pointer" style-hover="color:#e4e2dd">Reiniciar</button>
+</div>
+<div style="width:1280px;height:800px;position:relative;overflow:hidden;background:#16181b;border:1px solid #2c3037;border-radius:6px;display:flex;flex-direction:column;color:#e4e2dd">
+
+<sc-if value="{{ isSetup }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Setup" style="flex:1;min-height:0;display:flex;flex-direction:column">
+  <header style="height:48px;flex:none;display:flex;align-items:center;gap:14px;padding:0 24px;border-bottom:1px solid #2c3037">
+    <span style="font-size:12px;letter-spacing:.1em;text-transform:uppercase">Entrevista Twin</span>
+    <span style="font-size:10.5px;padding:2px 8px;border:1px solid #33373e;border-radius:3px;color:#8d9098">roteiro v1</span>
+    <span style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-size:12px;color:#6e7178">
+      <sc-if value="{{ ready }}" hint-placeholder-val="{{ false }}"><span style="width:7px;height:7px;border-radius:50%;background:oklch(0.7 0.12 145)"></span><span style="color:oklch(0.7 0.12 145)">pronto para iniciar</span></sc-if>
+      <sc-if value="{{ notReady }}" hint-placeholder-val="{{ true }}"><span style="width:7px;height:7px;border-radius:50%;border:1px solid #6e7178"></span><span>aguardando chaves</span></sc-if>
+    </span>
+  </header>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:540px 1px minmax(0,1fr)">
+    <section style="padding:36px 40px 32px;overflow:auto;display:flex;flex-direction:column;gap:30px">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <h1 style="margin:0;font-family:Spectral,Georgia,serif;font-weight:300;font-size:34px;line-height:1.15;color:#e4e2dd">Configuração da sessão</h1>
+        <p style="margin:0;font-size:12.5px;color:#8d9098;line-height:1.6">Dois motores, duas chaves. Nada sai desta máquina além das chamadas às duas APIs.</p>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#6e7178">Modo da entrevista</div>
+        <div role="radiogroup" style="display:grid;grid-template-columns:1fr 1fr;border:1px solid #2c3037;border-radius:3px;overflow:hidden;background:#101215">
+          <button type="button" role="radio" aria-checked="{{ isVoiceMode }}" onClick="{{ setVoz }}" style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-align:left;padding:12px 14px;border:0;cursor:pointer;background:{{ vozBg }};color:{{ vozColor }};box-shadow:{{ vozShadow }}" style-hover="background:#1d2024">
+            <span style="display:flex;align-items:center;gap:8px;font-size:12.5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><rect x="9" y="2" width="6" height="13" rx="3"></rect></svg>Voz</span>
+            <span style="font-size:11px;color:#8d9098;line-height:1.4">Grok lê e transcreve · ~75 min</span>
+          </button>
+          <button type="button" role="radio" aria-checked="{{ isWriteMode }}" onClick="{{ setEscrita }}" style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-align:left;padding:12px 14px;border:0;border-left:1px solid #2c3037;cursor:pointer;background:{{ escBg }};color:{{ escColor }};box-shadow:{{ escShadow }}" style-hover="background:#1d2024">
+            <span style="display:flex;align-items:center;gap:8px;font-size:12.5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"></path></svg>Escrita</span>
+            <span style="font-size:11px;color:#8d9098;line-height:1.4">Você digita as respostas · no seu ritmo</span>
+          </button>
+        </div>
+        <div style="font-size:11px;color:#6e7178;line-height:1.5">Livre escolha do cliente — e é possível alternar entre voz e escrita a qualquer momento da sessão.</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#6e7178">Chaves de API</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="width:8px;height:8px;background:oklch(0.74 0.11 65)"></span><span>Claude</span><span style="color:#6e7178">· inteligência — conduz a entrevista</span></div>
+          <div style="display:flex;align-items:center;gap:4px;height:40px;padding:0 4px 0 12px;background:#101215;border-radius:3px;border:1px solid {{ claudeBorder }}">
+            <input type="{{ claudeType }}" value="{{ claudeKey }}" onChange="{{ onClaudeKey }}" placeholder="sk-ant-…" spellcheck="false" autocomplete="off" style="flex:1;min-width:0;background:transparent;border:0;font-size:13px;color:#e4e2dd;letter-spacing:.02em">
+            <sc-if value="{{ claudeValid }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="oklch(0.7 0.12 145)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></sc-if>
+            <button type="button" onClick="{{ toggleClaude }}" aria-label="Mostrar ou ocultar a chave" style="width:32px;height:32px;display:grid;place-items:center;background:transparent;border:0;border-radius:3px;color:#8d9098;cursor:pointer" style-hover="color:#e4e2dd;background:#1d2024">
+              <sc-if value="{{ claudeShown }}" hint-placeholder-val="{{ false }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"></path><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"></path><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"></path><path d="m2 2 20 20"></path></svg></sc-if>
+              <sc-if value="{{ claudeHidden }}" hint-placeholder-val="{{ true }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path><circle cx="12" cy="12" r="3"></circle></svg></sc-if>
+            </button>
+          </div>
+          <div style="font-size:11.5px;line-height:1.5;color:{{ claudeHintColor }}">{{ claudeHint }}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="width:8px;height:8px;background:oklch(0.74 0.11 215)"></span><span>Grok</span><span style="color:#6e7178">· voz — lê as perguntas e transcreve as respostas</span><sc-if value="{{ isWriteMode }}" hint-placeholder-val="{{ false }}"><span style="margin-left:auto;font-size:10px;color:#6e7178;border:1px solid #2c3037;padding:1px 6px;border-radius:2px">opcional no modo escrita</span></sc-if></div>
+          <div style="display:flex;align-items:center;gap:4px;height:40px;padding:0 4px 0 12px;background:#101215;border-radius:3px;border:1px solid {{ grokBorder }}">
+            <input type="{{ grokType }}" value="{{ grokKey }}" onChange="{{ onGrokKey }}" placeholder="xai-…" spellcheck="false" autocomplete="off" style="flex:1;min-width:0;background:transparent;border:0;font-size:13px;color:#e4e2dd;letter-spacing:.02em">
+            <sc-if value="{{ grokValid }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="oklch(0.7 0.12 145)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></sc-if>
+            <button type="button" onClick="{{ toggleGrok }}" aria-label="Mostrar ou ocultar a chave" style="width:32px;height:32px;display:grid;place-items:center;background:transparent;border:0;border-radius:3px;color:#8d9098;cursor:pointer" style-hover="color:#e4e2dd;background:#1d2024">
+              <sc-if value="{{ grokShown }}" hint-placeholder-val="{{ false }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"></path><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"></path><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"></path><path d="m2 2 20 20"></path></svg></sc-if>
+              <sc-if value="{{ grokHidden }}" hint-placeholder-val="{{ true }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path><circle cx="12" cy="12" r="3"></circle></svg></sc-if>
+            </button>
+          </div>
+          <div style="font-size:11.5px;line-height:1.5;color:{{ grokHintColor }}">{{ grokHint }}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:#6e7178;padding-top:2px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><span>As chaves ficam apenas nesta máquina, no keychain do sistema. Não são gravadas no arquivo de transcrição.</span></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;opacity:{{ voiceOpacity }}">
+        <div style="display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#6e7178"><span>Voz da entrevistadora</span><sc-if value="{{ isWriteMode }}" hint-placeholder-val="{{ false }}"><span style="text-transform:none;letter-spacing:0;font-size:10.5px">— não usada no modo escrita</span></sc-if></div>
+        <div role="radiogroup" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+          <sc-for list="{{ voices }}" as="v" hint-placeholder-count="3">
+            <button type="button" role="radio" aria-checked="{{ v.selected }}" onClick="{{ v.select }}" style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;text-align:left;padding:12px 12px 11px;background:#101215;border-radius:3px;cursor:pointer;color:#e4e2dd;border:1px solid {{ v.border }}" style-hover="background:#131518">
+              <span style="display:flex;align-items:center;gap:8px;width:100%"><span style="width:8px;height:8px;border-radius:50%;flex:none;border:1px solid oklch(0.74 0.11 215);background:{{ v.dot }}"></span><span style="font-family:Spectral,Georgia,serif;font-size:17px;line-height:1.2">{{ v.name }}</span><span style="margin-left:auto;font-size:9.5px;letter-spacing:.04em;color:#6e7178;border:1px solid #2c3037;padding:1px 5px;border-radius:2px">placeholder</span></span>
+              <span style="font-size:11px;color:#8d9098;line-height:1.4">{{ v.desc }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="font-size:11px;color:#6e7178">Catálogo provisório — as vozes definitivas do Grok ainda não foram escolhidas.</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#6e7178">Destino da transcrição</div>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:1px solid #2c3037;background:#101215;border-radius:3px;height:40px;padding:0 12px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6e7178" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path></svg><input value="{{ path }}" onChange="{{ onPath }}" spellcheck="false" style="flex:1;min-width:0;background:transparent;border:0;font-size:12.5px;color:#e4e2dd"></div>
+          <button type="button" style="height:40px;padding:0 14px;display:inline-flex;align-items:center;background:transparent;border:1px solid #33373e;border-radius:3px;font-size:12px;color:#e4e2dd;cursor:pointer" style-hover="border-color:#8d9098;background:#1d2024">Escolher…</button>
+        </div>
+        <div style="font-size:11px;color:#6e7178;line-height:1.5">Texto simples, gravado localmente ao fim da entrevista. Nada é enviado para a nuvem.</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:auto;padding-top:6px">
+        <button type="button" onClick="{{ startSession }}" disabled="{{ notReady }}" style="height:46px;display:flex;align-items:center;justify-content:center;gap:10px;background:oklch(0.74 0.11 65);color:#16181b;border:0;border-radius:3px;font-size:12.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;opacity:{{ startOpacity }}" style-hover="background:oklch(0.8 0.11 65)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><rect x="9" y="2" width="6" height="13" rx="3"></rect></svg>{{ startLabel }}</button>
+        <div style="font-size:11px;color:#6e7178;line-height:1.5">{{ startHint }}</div>
+      </div>
+    </section>
+
+    <div style="background:#2c3037"></div>
+
+    <section style="padding:36px 40px 32px;overflow:auto;display:flex;flex-direction:column;gap:22px">
+      <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <h2 style="margin:0;font-family:Spectral,Georgia,serif;font-weight:300;font-size:26px;line-height:1.15;color:#e4e2dd">Roteiro carregado</h2>
+        <span style="font-size:10.5px;padding:2px 8px;border:1px solid oklch(0.74 0.11 65);border-radius:3px;color:oklch(0.74 0.11 65);letter-spacing:.04em">v1 · fixo</span>
+        <span style="margin-left:auto;font-size:11.5px;color:#8d9098;font-variant-numeric:tabular-nums">8 blocos · 27 perguntas · ~75 min ou 3 sessões de 25</span>
+      </div>
+      <div style="border-top:1px solid #2c3037">
+        <sc-for list="{{ blocks }}" as="b" hint-placeholder-count="8">
+          <div style="border-bottom:1px solid #2c3037">
+            <button type="button" onClick="{{ b.toggle }}" aria-expanded="{{ b.open }}" style="width:100%;display:grid;grid-template-columns:28px minmax(0,1fr) auto 18px;align-items:center;gap:14px;padding:13px 6px;background:transparent;border:0;text-align:left;cursor:pointer;color:#e4e2dd;border-radius:3px" style-hover="background:#1d2024">
+              <span style="font-size:12px;color:#6e7178;font-variant-numeric:tabular-nums">{{ b.num }}</span>
+              <span style="font-family:Spectral,Georgia,serif;font-size:19px;line-height:1.2">{{ b.name }}</span>
+              <span style="font-size:11px;color:#8d9098">{{ b.meta }}</span>
+              <sc-if value="{{ b.open }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8d9098" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg></sc-if>
+              <sc-if value="{{ b.closed }}" hint-placeholder-val="{{ true }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6e7178" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></sc-if>
+            </button>
+            <sc-if value="{{ b.open }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:2px 6px 18px 48px;display:flex;flex-direction:column;gap:12px">
+                <sc-for list="{{ b.questions }}" as="q" hint-placeholder-count="3">
+                  <div style="display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;align-items:baseline">
+                    <span style="font-size:11px;color:#6e7178;font-variant-numeric:tabular-nums">{{ q.n }}</span>
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                      <span style="font-family:Spectral,Georgia,serif;font-size:15.5px;line-height:1.4;color:#e4e2dd">{{ q.t }}</span>
+                      <sc-if value="{{ q.isMc }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:oklch(0.74 0.11 215)">múltipla escolha · {{ q.optCount }} opções</span></sc-if>
+                    </div>
+                  </div>
+                </sc-for>
+                <div style="display:flex;align-items:center;gap:8px;font-size:10.5px;color:#6e7178;margin-top:2px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><span>Versão fixa · roteiro v1 — este bloco não é editável no app.</span></div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+        <div style="display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;padding:14px 6px;border-bottom:1px solid #2c3037;align-items:baseline">
+          <span style="font-size:12px;color:#6e7178">—</span>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <span style="font-size:11px;color:#8d9098">Fechamento · fora da contagem</span>
+            <span style="font-family:Spectral,Georgia,serif;font-size:15.5px;line-height:1.4;font-style:italic;color:#e4e2dd">“Se um assistente fosse escrever no seu lugar amanhã, o que ele precisaria saber que ninguém pensaria em perguntar?”</span>
+          </div>
+        </div>
+      </div>
+      <div style="background:#1d2024;border:1px solid #2c3037;border-radius:3px;padding:18px 20px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:oklch(0.74 0.11 65)"><span style="width:8px;height:8px;background:oklch(0.74 0.11 65)"></span>Regra de condução</div>
+        <p style="margin:0;font-family:Spectral,Georgia,serif;font-size:16.5px;line-height:1.5;color:#e4e2dd;text-wrap:pretty">A voz lê a pergunta exatamente como está escrita. Uma única pergunta de aprofundamento por resposta, sempre pedindo exemplo concreto. Sem opinar, sem resumir, sem pular bloco.</p>
+      </div>
+    </section>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isSession }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Sessão em curso" style="flex:1;min-height:0;display:flex;flex-direction:column;position:relative">
+  <div style="height:2px;flex:none;background:#2c3037"><div style="height:2px;background:oklch(0.74 0.11 65);transition:width .4s;width:{{ progressPct }}"></div></div>
+  <header style="height:46px;flex:none;display:flex;align-items:center;gap:14px;padding:0 24px;border-bottom:1px solid #2c3037">
+    <span style="font-size:12px;letter-spacing:.1em;text-transform:uppercase">Entrevista Twin</span>
+    <span style="width:1px;height:16px;background:#33373e"></span>
+    <span style="font-size:12px;color:#8d9098">{{ sessionLabel }}</span>
+    <span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px;font-size:11.5px">
+      <sc-if value="{{ recording }}" hint-placeholder-val="{{ true }}">{{ recDot }}<span style="color:oklch(0.62 0.17 25);letter-spacing:.1em">GRAVANDO</span></sc-if>
+      <sc-if value="{{ writing }}" hint-placeholder-val="{{ false }}"><span style="width:8px;height:8px;background:oklch(0.74 0.11 215)"></span><span style="color:oklch(0.74 0.11 215);letter-spacing:.1em">ESCRITA</span></sc-if>
+      <sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}"><span style="width:8px;height:8px;border-radius:50%;border:1.5px solid oklch(0.74 0.11 65)"></span><span style="color:oklch(0.74 0.11 65);letter-spacing:.1em">PAUSADO</span></sc-if>
+      <span style="font-variant-numeric:tabular-nums;color:#e4e2dd;margin-left:6px;font-size:12.5px">{{ elapsedLabel }}</span>
+    </span>
+    <div role="radiogroup" aria-label="Modo da entrevista" style="display:inline-flex;height:30px;border:1px solid #33373e;border-radius:3px;overflow:hidden">
+      <button type="button" role="radio" aria-checked="{{ isVoiceMode }}" onClick="{{ setVoz }}" disabled="{{ voiceUnavailable }}" title="{{ voiceTitle }}" style="display:inline-flex;align-items:center;gap:6px;padding:0 10px;border:0;font-size:11px;cursor:pointer;background:{{ vozBg }};color:{{ vozColor }};box-shadow:{{ vozShadow }};opacity:{{ voiceToggleOpacity }}" style-hover="background:#1d2024"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><rect x="9" y="2" width="6" height="13" rx="3"></rect></svg>Voz</button>
+      <button type="button" role="radio" aria-checked="{{ isWriteMode }}" onClick="{{ setEscrita }}" style="display:inline-flex;align-items:center;gap:6px;padding:0 10px;border:0;border-left:1px solid #33373e;font-size:11px;cursor:pointer;background:{{ escBg }};color:{{ escColor }};box-shadow:{{ escShadow }}" style-hover="background:#1d2024"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"></path></svg>Escrita</button>
+    </div>
+    <button type="button" onClick="{{ endSession }}" style="height:30px;padding:0 10px;display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid #33373e;border-radius:3px;font-size:11.5px;color:#8d9098;cursor:pointer" style-hover="color:#e4e2dd;border-color:#8d9098"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="1"></rect></svg>Encerrar</button>
+  </header>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 380px">
+    <main style="display:flex;flex-direction:column;min-height:0">
+      <div style="flex:1;min-height:0;overflow:auto;padding:36px 48px 24px;display:flex;flex-direction:column;gap:26px">
+        <div style="display:flex;align-items:center;gap:12px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8d9098">
+          <span>{{ blockLabel }}</span>
+          <sc-if value="{{ curIsMc }}" hint-placeholder-val="{{ false }}"><span style="padding:2px 8px;border:1px solid oklch(0.74 0.11 215);color:oklch(0.74 0.11 215);border-radius:2px">múltipla escolha</span></sc-if>
+          <sc-if value="{{ curIsOpen }}" hint-placeholder-val="{{ true }}"><span style="padding:2px 8px;border:1px solid #33373e;color:#8d9098;border-radius:2px">pergunta aberta</span></sc-if>
+          <span style="margin-left:auto;font-variant-numeric:tabular-nums">{{ questionLabel }}</span>
+        </div>
+        <h1 style="margin:0;font-family:Spectral,Georgia,serif;font-weight:300;font-size:42px;line-height:1.2;max-width:760px;color:#e4e2dd;text-wrap:pretty">{{ curText }}</h1>
+        <sc-if value="{{ curIsMc }}" hint-placeholder-val="{{ false }}">
+          <ol style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;max-width:760px;border-top:1px solid #2c3037">
+            <sc-for list="{{ curOpts }}" as="o" hint-placeholder-count="4">
+              <li style="border-bottom:1px solid #2c3037">
+                <sc-if value="{{ o.voice }}" hint-placeholder-val="{{ true }}"><div style="display:grid;grid-template-columns:32px minmax(0,1fr);gap:12px;align-items:baseline;padding:11px 0"><span style="font-size:12px;color:oklch(0.74 0.11 215)">{{ o.letter }}</span><span style="font-family:Spectral,Georgia,serif;font-size:20px;line-height:1.35">{{ o.text }}</span></div></sc-if>
+                <sc-if value="{{ o.write }}" hint-placeholder-val="{{ false }}"><button type="button" role="radio" aria-checked="{{ o.selected }}" onClick="{{ o.pick }}" style="width:100%;display:grid;grid-template-columns:32px minmax(0,1fr) 16px;gap:12px;align-items:baseline;padding:11px 8px;background:transparent;border:0;border-radius:3px;text-align:left;cursor:pointer;color:#e4e2dd;box-shadow:{{ o.shadow }}" style-hover="background:#1d2024"><span style="font-size:12px;color:oklch(0.74 0.11 215)">{{ o.letter }}</span><span style="font-family:Spectral,Georgia,serif;font-size:20px;line-height:1.35">{{ o.text }}</span><sc-if value="{{ o.selected }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="oklch(0.74 0.11 215)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></sc-if></button></sc-if>
+              </li>
+            </sc-for>
+          </ol>
+        </sc-if>
+        <div style="background:#1d2024;border:1px solid #2c3037;border-radius:3px;padding:14px 18px;display:flex;flex-direction:column;gap:8px;max-width:760px">
+          <div style="display:flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:oklch(0.74 0.11 65)"><span style="width:8px;height:8px;background:oklch(0.74 0.11 65)"></span>Claude · condução desta pergunta</div>
+          <p style="margin:0;font-size:12.5px;line-height:1.6;color:#8d9098">{{ curRule }}</p>
+        </div>
+        <sc-if value="{{ isWriting }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:10px;max-width:760px">
+            <div style="display:flex;align-items:center;gap:12px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8d9098"><span>{{ answerLabel }}</span><sc-if value="{{ answered }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:6px;color:oklch(0.7 0.12 145);text-transform:none;letter-spacing:0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>registrada na transcrição</span></sc-if></div>
+            <textarea rows="4" value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onDraftKey }}" placeholder="{{ draftPlaceholder }}" spellcheck="false" style="width:100%;resize:vertical;min-height:96px;padding:12px 14px;background:#101215;border:1px solid #2c3037;border-radius:3px;font-family:Spectral,Georgia,serif;font-size:17px;line-height:1.5;color:#e4e2dd" style-focus="border-color:oklch(0.74 0.11 215)"></textarea>
+            <div style="display:flex;align-items:center;gap:12px">
+              <button type="button" onClick="{{ fillExample }}" style="height:32px;padding:0 8px;background:transparent;border:0;border-radius:3px;font-size:11.5px;color:#8d9098;cursor:pointer" style-hover="color:#e4e2dd">Preencher com exemplo</button>
+              <span style="font-size:11px;color:#6e7178">Ctrl/⌘ + Enter registra</span>
+              <span style="flex:1"></span>
+              <button type="button" onClick="{{ submit }}" disabled="{{ submitDisabled }}" style="height:36px;padding:0 16px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid oklch(0.74 0.11 215);border-radius:3px;font-size:12px;color:oklch(0.74 0.11 215);cursor:pointer;opacity:{{ submitOpacity }}" style-hover="background:oklch(0.74 0.11 215 / .12)">Registrar resposta</button>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ isVoice }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;gap:16px;margin-top:auto;padding-top:8px">
+            {{ audioBars }}
+            <span style="font-size:12px;color:{{ phaseColor }}">{{ phaseLabel }}</span>
+            <span style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-size:11px;color:#6e7178"><span style="width:6px;height:6px;background:oklch(0.74 0.11 215)"></span>Grok · voz {{ voiceName }}</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{ isWriting }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:12px;margin-top:auto;padding-top:8px;font-size:12px;color:#6e7178"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="oklch(0.74 0.11 215)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"></path></svg><span>{{ writeLabel }}</span><span style="margin-left:auto;font-size:11px">Microfone fechado · alterne para voz no cabeçalho</span></div>
+        </sc-if>
+      </div>
+      <div style="flex:none;border-top:1px solid #2c3037;padding:14px 48px;display:flex;align-items:center;gap:10px">
+        <button type="button" onClick="{{ prev }}" disabled="{{ atFirst }}" style="height:36px;padding:0 14px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid #33373e;border-radius:3px;font-size:12px;color:#e4e2dd;cursor:pointer;opacity:{{ prevOpacity }}" style-hover="border-color:#8d9098;background:#1d2024"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" x2="5" y1="19" y2="5"></line></svg>Anterior</button>
+        <button type="button" onClick="{{ togglePause }}" style="height:36px;padding:0 14px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid #33373e;border-radius:3px;font-size:12px;color:#e4e2dd;cursor:pointer" style-hover="border-color:#8d9098;background:#1d2024">
+          <sc-if value="{{ notPaused }}" hint-placeholder-val="{{ true }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="4" width="4" height="16" rx="1"></rect><rect x="6" y="4" width="4" height="16" rx="1"></rect></svg><span>Pausar</span></sc-if>
+          <sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg><span>Retomar</span></sc-if>
+        </button>
+        <button type="button" onClick="{{ deepen }}" disabled="{{ deepDisabled }}" style="height:36px;padding:0 14px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid #33373e;border-radius:3px;font-size:12px;color:#e4e2dd;cursor:pointer;opacity:{{ deepOpacity }}" style-hover="border-color:#8d9098;background:#1d2024"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 10 20 15 15 20"></polyline><path d="M4 4v7a4 4 0 0 0 4 4h12"></path></svg>{{ deepLabel }}</button>
+        <span style="flex:1"></span>
+        <button type="button" onClick="{{ next }}" style="height:36px;padding:0 16px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid oklch(0.74 0.11 65);border-radius:3px;font-size:12px;color:oklch(0.74 0.11 65);cursor:pointer" style-hover="background:oklch(0.74 0.11 65 / .12)">{{ nextLabel }}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></button>
+      </div>
+    </main>
+    <aside style="border-left:1px solid #2c3037;display:flex;flex-direction:column;min-height:0;background:#1d2024">
+      <div style="height:44px;flex:none;display:flex;align-items:center;gap:10px;padding:0 20px;border-bottom:1px solid #2c3037;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8d9098"><span>Transcrição</span><span style="margin-left:auto;font-size:10.5px;text-transform:none;letter-spacing:0;color:#6e7178;font-variant-numeric:tabular-nums">{{ lineCount }} falas</span></div>
+      <div ref="{{ transcriptRef }}" style="flex:1;min-height:0;overflow:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+        <sc-for list="{{ lines }}" as="l" hint-placeholder-count="3">
+          <div style="display:grid;grid-template-columns:46px minmax(0,1fr);gap:10px">
+            <span style="font-size:10.5px;color:#6e7178;font-variant-numeric:tabular-nums;padding-top:2px">{{ l.time }}</span>
+            <sc-if value="{{ l.isInterviewer }}" hint-placeholder-val="{{ true }}"><div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:oklch(0.74 0.11 215)">Entrevistadora</span><span style="font-family:Spectral,Georgia,serif;font-size:14px;line-height:1.45;color:#8d9098">{{ l.text }}</span></div></sc-if>
+            <sc-if value="{{ l.isClient }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8d9098">{{ l.clientLabel }}</span><span style="font-size:12.5px;line-height:1.55;color:#e4e2dd">{{ l.text }}</span></div></sc-if>
+          </div>
+        </sc-for>
+        <sc-if value="{{ listening }}" hint-placeholder-val="{{ false }}"><div style="display:grid;grid-template-columns:46px minmax(0,1fr);gap:10px"><span style="font-size:10.5px;color:#6e7178;padding-top:2px">{{ nowStamp }}</span><span style="font-size:11.5px;color:oklch(0.74 0.11 65)">transcrevendo…</span></div></sc-if>
+      </div>
+      <div style="flex:none;border-top:1px solid #2c3037;padding:14px 20px 16px;display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#6e7178">Blocos</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <sc-for list="{{ chips }}" as="c" hint-placeholder-count="8">
+            <button type="button" onClick="{{ c.go }}" style="display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:3px;font-size:11px;cursor:pointer;background:transparent;border:1px solid {{ c.border }};color:{{ c.color }}" style-hover="background:#16181b">
+              <sc-if value="{{ c.done }}" hint-placeholder-val="{{ false }}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></sc-if>
+              <span style="font-variant-numeric:tabular-nums">{{ c.num }}</span><span>{{ c.name }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </aside>
+  </div>
+  <sc-if value="{{ endConfirm }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;display:grid;place-items:center;background:rgba(11,12,14,.66);z-index:5" onClick="{{ cancelEnd }}">
+      <div role="dialog" aria-modal="true" style="width:440px;background:#1d2024;border:1px solid #33373e;border-radius:4px;padding:22px 24px;display:flex;flex-direction:column;gap:12px" onClick="{{ stop }}">
+        <div style="font-family:Spectral,Georgia,serif;font-size:22px;line-height:1.2">Encerrar a entrevista agora?</div>
+        <p style="margin:0;font-size:12.5px;line-height:1.6;color:#8d9098">{{ remainingLabel }} A transcrição é gravada até este ponto, em texto simples, no destino escolhido.</p>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
+          <button type="button" onClick="{{ cancelEnd }}" style="height:34px;padding:0 14px;background:transparent;border:1px solid #33373e;border-radius:3px;font-size:12px;color:#e4e2dd;cursor:pointer" style-hover="border-color:#8d9098">Continuar</button>
+          <button type="button" onClick="{{ confirmEnd }}" style="height:34px;padding:0 14px;background:transparent;border:1px solid oklch(0.74 0.11 65);border-radius:3px;font-size:12px;color:oklch(0.74 0.11 65);cursor:pointer" style-hover="background:oklch(0.74 0.11 65 / .12)">Encerrar e gravar</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDone }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Conclusão" style="flex:1;min-height:0;display:flex;flex-direction:column">
+  <header style="height:48px;flex:none;display:flex;align-items:center;gap:14px;padding:0 24px;border-bottom:1px solid #2c3037">
+    <span style="font-size:12px;letter-spacing:.1em;text-transform:uppercase">Entrevista Twin</span>
+    <span style="font-size:10.5px;padding:2px 8px;border:1px solid #33373e;border-radius:3px;color:#8d9098">roteiro v1</span>
+    <span style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-size:12px;color:#6e7178"><span style="width:7px;height:7px;border-radius:50%;border:1px solid #6e7178"></span><span>microfone fechado</span></span>
+  </header>
+  <div style="flex:1;display:grid;place-items:center;padding:48px">
+    <div style="width:640px;display:flex;flex-direction:column;gap:26px">
+      <div style="display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:oklch(0.7 0.12 145)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>Entrevista concluída</div>
+      <h1 style="margin:0;font-family:Spectral,Georgia,serif;font-weight:300;font-size:40px;line-height:1.15;color:#e4e2dd;text-wrap:pretty">A transcrição bruta foi gravada nesta máquina.</h1>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid #2c3037;border-bottom:1px solid #2c3037">
+        <div style="padding:14px 0;display:flex;flex-direction:column;gap:4px"><span style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#6e7178">Duração</span><span style="font-family:Spectral,Georgia,serif;font-size:24px;font-variant-numeric:tabular-nums">{{ finishedLabel }}</span></div>
+        <div style="padding:14px 0 14px 20px;border-left:1px solid #2c3037;display:flex;flex-direction:column;gap:4px"><span style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#6e7178">Perguntas</span><span style="font-family:Spectral,Georgia,serif;font-size:24px;font-variant-numeric:tabular-nums">{{ askedLabel }}</span></div>
+        <div style="padding:14px 0 14px 20px;border-left:1px solid #2c3037;display:flex;flex-direction:column;gap:4px"><span style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#6e7178">Falas transcritas</span><span style="font-family:Spectral,Georgia,serif;font-size:24px;font-variant-numeric:tabular-nums">{{ lineCount }}</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#6e7178">Arquivo gerado</div>
+        <div style="display:flex;align-items:center;gap:12px;border:1px solid #2c3037;background:#101215;border-radius:3px;padding:12px 14px;font-size:12.5px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8d9098" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path></svg><span style="flex:1;min-width:0;word-break:break-all;color:#e4e2dd">{{ path }}</span><span style="color:#6e7178;font-variant-numeric:tabular-nums;flex:none">{{ fileSize }}</span></div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button type="button" style="height:36px;padding:0 14px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid #33373e;border-radius:3px;font-size:12px;color:#e4e2dd;cursor:pointer" style-hover="border-color:#8d9098;background:#1d2024"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path></svg>Abrir pasta</button>
+        <button type="button" onClick="{{ reset }}" style="height:36px;padding:0 10px;display:inline-flex;align-items:center;background:transparent;border:0;border-radius:3px;font-size:12px;color:#8d9098;cursor:pointer" style-hover="color:#e4e2dd">Nova entrevista</button>
+      </div>
+      <p style="margin:0;font-size:11px;line-height:1.6;color:#6e7178;max-width:560px">As chaves permanecem no keychain do sistema. Durante a sessão, nada além das chamadas de voz e de condução saiu desta máquina.</p>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;simulateAnswers&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Simulação&quot;},&quot;paceMs&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:600,&quot;min&quot;:400,&quot;max&quot;:4000,&quot;step&quot;:200,&quot;unit&quot;:&quot;ms&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Simulação&quot;},&quot;sessionMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;tres&quot;,&quot;options&quot;:[&quot;unica&quot;,&quot;tres&quot;],&quot;tsType&quot;:&quot;'unica' | 'tres'&quot;,&quot;section&quot;:&quot;Fluxo&quot;}}">
+const AMBER = 'oklch(0.74 0.11 65)', BLUE = 'oklch(0.74 0.11 215)', GREEN = 'oklch(0.7 0.12 145)', RED = 'oklch(0.62 0.17 25)';
+const TOTAL = 27;
+const BLOCKS = [
+  { name: 'Quem é', meta: '3 perguntas · abertas' },
+  { name: 'Trajetória', meta: '3 perguntas · abertas' },
+  { name: 'Voz e escrita', meta: '4 perguntas · 1 múltipla escolha' },
+  { name: 'Domínio', meta: '3 perguntas · 1 múltipla escolha' },
+  { name: 'Valores e limites', meta: '3 perguntas · abertas' },
+  { name: 'Pessoas e tom', meta: '3 perguntas · abertas' },
+  { name: 'Rotina e ferramentas', meta: '3 perguntas · 1 múltipla escolha' },
+  { name: 'Fora do escritório', meta: '4 perguntas · abertas' },
+];
+// b = block index (8 = fechamento), t = pergunta, r = instrução de condução (Claude), a = resposta fictícia, d/da = aprofundamento e resposta
+const Q = [
+  { b: 0, t: 'Como você se apresenta quando alguém pergunta o que você faz?', r: 'Ler como está. Se a resposta vier em uma frase, pedir um exemplo de situação em que essa apresentação foi usada.', a: 'Digo que sou advogada de empresas de família. Se insistem, explico que passo o dia evitando que sócios que são parentes virem ex-parentes.', d: 'Pode me dar um exemplo de uma situação em que usou essa apresentação?', da: 'Num jantar, mês passado. A pessoa riu e no dia seguinte mandou o contato do irmão.' },
+  { b: 0, t: 'O que as pessoas costumam errar sobre você numa primeira impressão?', r: 'Não comentar. Aprofundar apenas se não houver exemplo concreto.', a: 'Acham que sou dura. Sou só objetiva — a dureza aparece depois, quando precisa.', d: 'Lembra de um caso concreto em que isso aconteceu?', da: 'Um cliente novo pediu para falar com “alguém mais acessível”. Três meses depois, só queria falar comigo.' },
+  { b: 0, t: 'Que três palavras alguém que trabalha com você há dez anos usaria para descrevê-lo?', r: 'Registrar as três palavras literalmente. Aprofundar pedindo a história por trás de uma delas.', a: 'Precisa, impaciente e leal. Nessa ordem, provavelmente.', d: 'Qual é a história por trás de uma dessas palavras?', da: 'Leal: fiquei no escritório antigo dois anos além do que devia porque o sócio estava doente.' },
+  { b: 1, t: 'Qual foi a decisão que mais mudou o rumo da sua carreira?', r: 'Pedir o ano e o contexto, se não vierem.', a: 'Sair da banca grande em 2014 para abrir o escritório com duas pessoas. Perdi salário e ganhei a agenda.', d: 'Qual era o contexto naquele momento?', da: 'Tinha acabado de perder uma promoção para alguém que faturava mais e sabia menos.' },
+  { b: 1, t: 'Que trabalho você fez de que mais se orgulha — e por quê?', r: 'Se o porquê for abstrato, pedir o que exatamente aconteceu.', a: 'Um acordo de sócios que evitou a venda de uma fábrica de oitenta anos. Porque ninguém saiu perdendo e ninguém saiu ganhando.', d: 'O que exatamente aconteceu para chegar a esse resultado?', da: 'Onze reuniões. Na sétima, tirei os advogados da sala e deixei os irmãos conversarem.' },
+  { b: 1, t: 'Houve um fracasso que ensinou mais do que qualquer acerto?', r: 'Aceitar silêncio. Não pressionar além de uma tentativa.', a: 'Perdi um cliente por mandar um parecer correto na hora errada. Aprendi que timing é parte do conteúdo.', d: 'Pode contar como foi esse momento?', da: 'Mandei numa sexta à noite, véspera do casamento da filha dele. Ele leu no sábado.' },
+  { b: 2, t: 'Quando escreve para um cliente, como você começa um texto?', r: 'Pedir a primeira frase de um texto real, de memória.', a: 'Com a conclusão. A primeira frase diz o que ele precisa fazer; o resto explica por quê.', d: 'Lembra da primeira frase de um texto real que escreveu recentemente?', da: '“Não assine antes de quinta.” Foi isso. O e-mail tinha quatro parágrafos depois.' },
+  { b: 2, mc: true, pick: 2, t: 'Qual destas frases soa mais como você?', o: ['Segue a análise solicitada, conforme conversamos.', 'Conforme alinhado, encaminho abaixo os pontos principais.', 'Vamos direto ao ponto: há três questões a resolver.', 'Prezado, cumpre-nos informar o que segue.'], r: 'Ler as quatro opções pausadamente. Registrar a letra escolhida e, se houver, o comentário.', a: 'A terceira. As outras parecem escritas por outra pessoa.', d: 'Há algo nas outras opções que você evitaria de propósito?', da: '“Cumpre-nos.” Nunca escrevi isso na vida.' },
+  { b: 2, t: 'Que palavras ou expressões você nunca usaria por escrito?', r: 'Registrar literalmente. Não sugerir exemplos.', a: '“Outrossim”, “destarte”, “no aguardo”. E ponto de exclamação.', d: 'Pode dar um exemplo de quando alguém usou e você reescreveu?', da: 'Um associado escreveu “no aguardo de um breve retorno”. Troquei por “me responda até terça”.' },
+  { b: 2, t: 'Como você quer que um texto seu termine — com pedido, com resumo ou com silêncio?', r: 'Pedir um exemplo de fechamento recente.', a: 'Com pedido. Um texto sem próximo passo é um texto que não terminou.', d: 'Qual foi o fechamento do último texto que enviou?', da: '“Me diga até sexta se seguimos.” Cinco palavras.' },
+  { b: 3, t: 'Em que assunto as pessoas te procuram sabendo que você é a referência?', r: 'Pedir um caso concreto em que isso aconteceu.', a: 'Conflito entre sócios em empresa familiar. Quando o problema é jurídico e afetivo ao mesmo tempo.', d: 'Pode contar um caso em que isso aconteceu?', da: 'Três irmãos, uma rede de farmácias. Vieram por indicação de um contador que eu nunca conheci.' },
+  { b: 3, mc: true, pick: 1, t: 'Quando um tema sai da sua especialidade, o que você faz?', o: ['Estudo e respondo.', 'Encaminho a quem sabe.', 'Respondo com ressalva explícita.', 'Depende do cliente.'], r: 'Ler as quatro opções. Registrar a letra e o complemento, se houver.', a: 'Encaminho. Tenho três nomes para tributário e dois para trabalhista, e digo isso ao cliente.', d: 'Como você comunica isso ao cliente?', da: '“Isso não é comigo, é com a Fernanda. Vou te apresentar hoje.” Nunca perdi cliente por isso.' },
+  { b: 3, t: 'Qual é a pergunta que você mais responde no trabalho — e qual é a resposta?', r: 'Registrar a resposta na íntegra; é material de voz.', a: '“Posso tirar meu irmão da sociedade?” Pode, mas vai custar mais do que imagina — em dinheiro e em Natal.', d: 'Pode dar um exemplo de como essa conversa costuma se desenrolar?', da: 'Eles perguntam quanto. Eu pergunto quantos anos de família querem preservar. Aí a conversa muda.' },
+  { b: 4, t: 'O que você recusa fazer, mesmo quando pagam bem?', r: 'Não opinar. Pedir uma situação em que isso foi testado.', a: 'Blindagem patrimonial para quem está prestes a dar calote. Já recusei duas vezes este ano.', d: 'Pode contar uma situação em que isso foi testado?', da: 'Um empresário ofereceu o triplo da minha hora. Disse não em dez minutos e ele foi ao concorrente.' },
+  { b: 4, t: 'Qual é a linha que você não cruza numa negociação?', r: 'Pedir exemplo concreto, sem nomes.', a: 'Não blefo com fato. Posso não revelar, mas nunca afirmo o que não é.', d: 'Lembra de um exemplo concreto, sem nomes?', da: 'A outra parte perguntou se meu cliente tinha outra proposta. Não tinha. Eu disse: “Não vou responder isso.”' },
+  { b: 4, t: 'O que te faz perder a paciência no trabalho?', r: 'Aceitar respostas curtas. Uma tentativa de aprofundamento, no máximo.', a: 'Gente que responde e-mail sem ler o e-mail.', d: 'Pode dar um exemplo recente?', da: 'Ontem. Mandei três perguntas numeradas e recebi “ok” de volta.' },
+  { b: 5, t: 'Como você dá uma notícia ruim a um cliente?', r: 'Pedir a última vez que precisou fazer isso e como começou a conversa.', a: 'Por telefone, no mesmo dia, começando pela notícia. Nunca por e-mail e nunca com preâmbulo.', d: 'Como começou a última conversa desse tipo?', da: '“Perdemos o prazo. A culpa é minha. Aqui está o que fazemos agora.”' },
+  { b: 5, t: 'Com quem você é mais formal — e com quem se permite ser direto?', r: 'Registrar os dois polos. Não aprofundar.', a: 'Formal com juiz e com cliente novo. Direta com sócio, com associado e com cliente de mais de um ano.', d: null },
+  { b: 5, t: 'O que você espera de alguém que trabalha para você?', r: 'Pedir um exemplo de quando essa expectativa não foi atendida.', a: 'Que me avise antes de eu descobrir. Erro eu perdoo; surpresa, não.', d: 'Pode dar um exemplo de quando essa expectativa não foi atendida?', da: 'Um associado escondeu um prazo perdido por dois dias. Saiu no mês seguinte.' },
+  { b: 6, t: 'Como começa o seu dia de trabalho?', r: 'Pedir horário e a primeira coisa que abre.', a: 'Às 6h40, com café e a lista de prazos do dia. E-mail só depois das nove.', d: 'Qual é a primeira coisa que você abre?', da: 'A planilha de prazos. É a mesma desde 2014, com uma aba por ano.' },
+  { b: 6, mc: true, pick: 1, t: 'Onde você escreve a maior parte do que produz?', o: ['Word', 'E-mail', 'WhatsApp e mensagens', 'Papel, e depois digito'], r: 'Ler as opções. Registrar a letra e o complemento, se houver.', a: 'E-mail. Parecer longo é raro; o trabalho de verdade são vinte e-mails curtos por dia.', d: 'Há algo que você escreve sempre em outro lugar?', da: 'Cláusula de acordo, só no Word. Anotação de reunião, só à mão.' },
+  { b: 6, t: 'Que ferramenta você abandonaria hoje se pudesse?', r: 'Aceitar a resposta como vier. Não aprofundar.', a: 'WhatsApp com cliente. Mas não dá.', d: null },
+  { b: 7, t: 'O que você lê que não tem nada a ver com trabalho?', r: 'Pedir o último título.', a: 'Biografia de gente que fracassou. E receita, que eu nunca faço.', d: 'Qual foi o último título?', da: 'Uma biografia do Getúlio. A parte de 1954, principalmente.' },
+  { b: 7, t: 'Há um lugar onde você pensa melhor?', r: 'Pedir uma descrição breve do lugar.', a: 'Dirigindo. Estrada, sem rádio.', d: 'Pode descrever brevemente esse lugar?', da: 'A Castelo Branco às sete da manhã de domingo. Quarenta minutos, e volto com o problema resolvido.' },
+  { b: 7, t: 'O que a sua família diria que você faz demais?', r: 'Não comentar. Registrar literalmente.', a: 'Corrigir a redação dos outros. Inclusive em mensagem de aniversário.', d: 'Pode dar um exemplo?', da: 'Minha filha me mandou “parabéns pra você” e eu respondi com a vírgula.' },
+  { b: 7, t: 'Que assunto você poderia falar por uma hora sem preparo?', r: 'Pedir os dois ou três pontos que abririam essa hora.', a: 'Sucessão em empresa familiar. E vinho do Douro, mas isso é outra entrevista.', d: 'Quais seriam os dois ou três pontos que abririam essa hora?', da: 'Primeiro: herdeiro não é sócio. Segundo: acordo bom se faz com todo mundo vivo. Terceiro: quem manda paga.' },
+  { b: 8, t: 'Se um assistente fosse escrever no seu lugar amanhã, o que ele precisaria saber que ninguém pensaria em perguntar?', r: 'Ler exatamente como está. Não aprofundar. Agradecer e encerrar.', a: 'Que eu nunca escrevo “espero que esteja bem”. E que, se o texto tem mais de cinco parágrafos, eu já desconfio de mim mesma.', d: null },
+];
+const VOICES = [
+  { id: 'ana', name: 'Ana', desc: 'Neutra, ritmo médio' },
+  { id: 'beatriz', name: 'Beatriz', desc: 'Pausada, registro grave' },
+  { id: 'clara', name: 'Clara', desc: 'Firme, dicção marcada' },
+];
+const TEST_CLAUDE = 'sk-ant-api03-Xk9pQ2mL7vR4tY8wZ1aB3cD5eF6gH0jK', TEST_GROK = 'xai-7Hq2Lm9Pz4Rt6Vw8Yb1Nc3Df5Gh0Jk2Lm';
+const validClaude = k => /^sk-ant-[A-Za-z0-9_-]{20,}$/.test(k);
+const validGrok = k => /^xai-[A-Za-z0-9_-]{20,}$/.test(k);
+const pad = n => String(n).padStart(2, '0');
+const fmt = s => `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}`;
+const stamp = s => s >= 3600 ? `${Math.floor(s / 3600)}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}` : `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+const fresh = () => ({ screen: 'setup', mode: 'voz', claudeKey: '', grokKey: '', showClaude: false, showGrok: false, voice: 'ana', path: '~/Documentos/Entrevista Twin/transcricao-2026-09-06.md', open: [0], idx: 0, visited: [], deepUsed: [], typed: [], draft: '', mcPick: null, deepOpen: false, lines: [], elapsed: 0, paused: false, phase: 'idle', endConfirm: false, finishedAt: 0 });
+const SEL = { bg: '#1d2024', color: '#e4e2dd', shadow: 'inset 0 0 0 1px oklch(0.74 0.11 65)' }, UNSEL = { bg: 'transparent', color: '#8d9098', shadow: 'none' };
+// linhas fictícias para saltos do protótipo: ~2,7 min por pergunta
+const genLines = n => { const out = []; for (let i = 0; i < n; i++) { const t = i * 160 + 6; out.push({ id: 'q' + i, who: 'i', text: Q[i].t, time: stamp(t) }); out.push({ id: 'a' + i, who: 'c', text: Q[i].a, time: stamp(t + 70) }); } return out; };
+
+class Component extends DCLogic {
+  state = fresh();
+  transcriptRef = React.createRef();
+  timers = [];
+  tick = null;
+  lastSig = '';
+
+  pace() { return this.props.paceMs ?? 1600; }
+  later(fn, ms) { const t = setTimeout(() => { this.timers = this.timers.filter(x => x !== t); fn(); }, ms); this.timers.push(t); }
+  clearTimers() { this.timers.forEach(clearTimeout); this.timers = []; }
+  startTick() { if (this.tick) return; this.tick = setInterval(() => { const s = this.state; if (s.screen === 'session' && !s.paused) this.setState({ elapsed: s.elapsed + 1 }); }, 1000); }
+  stopTick() { if (this.tick) clearInterval(this.tick); this.tick = null; }
+  componentWillUnmount() { this.clearTimers(); this.stopTick(); }
+  componentDidUpdate() {
+    const s = this.state, el = this.transcriptRef.current;
+    const sig = s.lines.length + ':' + s.phase;
+    if (el && sig !== this.lastSig) { this.lastSig = sig; el.scrollTop = el.scrollHeight; }
+  }
+
+  addLine(who, text, typed) { this.setState(s => ({ lines: [...s.lines, { id: who + s.lines.length, who, text, typed: !!typed, time: stamp(s.elapsed) }] })); }
+  // Voz: Grok lê a pergunta → cliente responde (simulado) → idle. Escrita: só a pergunta entra na transcrição; a resposta vem do formulário.
+  ask(i) {
+    this.clearTimers();
+    const write = this.state.mode === 'escrita';
+    this.setState(s => ({ idx: i, phase: write ? 'idle' : 'speaking', paused: false, draft: '', mcPick: null, deepOpen: false, visited: s.visited.includes(i) ? s.visited : [...s.visited, i] }));
+    this.addLine('i', Q[i].t);
+    if (write) return;
+    this.speakThenListen(() => Q[i].a, i === Q.length - 1 ? () => this.later(() => this.addLine('i', 'Obrigada. A entrevista está encerrada.'), 700) : null);
+  }
+  submit() {
+    const s = this.state, q = Q[s.idx];
+    let text = s.draft.trim();
+    if (q.mc && !s.deepOpen) { if (s.mcPick == null) return; text = `${String.fromCharCode(65 + s.mcPick)} — ${q.o[s.mcPick]}${text ? ' ' + text : ''}`; }
+    if (!text) return;
+    this.addLine('c', text, true);
+    this.setState(st => ({ draft: '', deepOpen: false, typed: st.typed.includes(st.idx) ? st.typed : [...st.typed, st.idx] }));
+    if (s.idx === Q.length - 1 && !s.deepOpen) this.later(() => this.addLine('i', 'Obrigada. A entrevista está encerrada.'), 400);
+  }
+  fillExample() {
+    const s = this.state, q = Q[s.idx];
+    if (s.deepOpen) this.setState({ draft: q.da || '' });
+    else if (q.mc) this.setState({ mcPick: q.pick ?? 0, draft: '' });
+    else this.setState({ draft: q.a });
+  }
+  setMode(m) {
+    if (m === 'voz' && !validGrok(this.state.grokKey)) return;
+    this.clearTimers();
+    this.setState({ mode: m, phase: 'idle', draft: '', deepOpen: false });
+  }
+  speakThenListen(answerFn, after) {
+    this.later(() => {
+      if (!(this.props.simulateAnswers ?? true)) { this.setState({ phase: 'idle' }); return; }
+      this.setState({ phase: 'listening' });
+      this.later(() => { this.setState({ phase: 'idle' }); this.addLine('c', answerFn()); if (after) after(); }, Math.round(this.pace() * 1.4));
+    }, this.pace());
+  }
+  goTo(i) {
+    if (i < 0 || i >= Q.length) return;
+    if (this.state.visited.includes(i)) { this.clearTimers(); this.setState({ idx: i, phase: this.state.paused ? 'paused' : 'idle', draft: '', mcPick: null, deepOpen: false }); } else this.ask(i);
+  }
+  deepen() {
+    const s = this.state, q = Q[s.idx];
+    if (!q.d || s.deepUsed.includes(s.idx)) return;
+    if (s.mode === 'escrita') { if (!s.typed.includes(s.idx)) return; this.setState({ deepUsed: [...s.deepUsed, s.idx], deepOpen: true, draft: '' }); this.addLine('i', q.d); return; }
+    if (s.phase !== 'idle') return;
+    this.setState({ deepUsed: [...s.deepUsed, s.idx], phase: 'speaking' });
+    this.addLine('i', q.d);
+    this.speakThenListen(() => q.da);
+  }
+  togglePause() {
+    const s = this.state;
+    if (s.paused) this.setState({ paused: false, phase: 'idle' });
+    else { this.clearTimers(); this.setState({ paused: true, phase: 'paused' }); }
+  }
+  startSession() {
+    if (!(validClaude(this.state.claudeKey) && (this.state.mode === 'escrita' || validGrok(this.state.grokKey)))) return;
+    this.setState({ screen: 'session', idx: 0, lines: [], visited: [], deepUsed: [], elapsed: 0, paused: false, endConfirm: false });
+    this.startTick();
+    this.later(() => this.ask(0), 50);
+  }
+  finish() { this.clearTimers(); this.stopTick(); this.setState(s => ({ screen: 'done', endConfirm: false, finishedAt: s.elapsed, phase: 'idle' })); }
+  reset() { this.clearTimers(); this.stopTick(); this.setState(fresh()); }
+  jump(target) {
+    this.clearTimers(); this.stopTick();
+    if (target === 'setup') this.setState(fresh());
+    if (target === 'setupValid') this.setState({ ...fresh(), claudeKey: TEST_CLAUDE, grokKey: TEST_GROK });
+    if (target === 'session') {
+      const n = 7;
+      this.setState({ ...fresh(), screen: 'session', claudeKey: TEST_CLAUDE, grokKey: TEST_GROK, visited: Array.from({ length: n }, (_, i) => i), deepUsed: [1, 4], lines: genLines(n), elapsed: n * 160 + 40 });
+      this.startTick();
+      this.later(() => this.ask(n), 50);
+    }
+    if (target === 'sessionWrite') {
+      const n = 7;
+      this.setState({ ...fresh(), screen: 'session', mode: 'escrita', claudeKey: TEST_CLAUDE, grokKey: TEST_GROK, visited: Array.from({ length: n }, (_, i) => i), typed: [5, 6], deepUsed: [1, 4], lines: genLines(n).map(l => l.who === 'c' && Number(l.id.slice(1)) >= 5 ? { ...l, typed: true } : l), elapsed: n * 160 + 40 });
+      this.startTick();
+      this.later(() => this.ask(n), 50);
+    }
+    if (target === 'done') {
+      const lines = genLines(Q.length); lines.push({ id: 'thanks', who: 'i', text: 'Obrigada. A entrevista está encerrada.', time: stamp(Q.length * 160 + 60) });
+      this.setState({ ...fresh(), screen: 'done', claudeKey: TEST_CLAUDE, grokKey: TEST_GROK, visited: Q.map((_, i) => i), idx: Q.length - 1, lines, elapsed: 4360, finishedAt: 4360 });
+    }
+  }
+
+  renderVals() {
+    const s = this.state, q = Q[s.idx], mode = this.props.sessionMode ?? 'unica';
+    const write = s.mode === 'escrita', cv = validClaude(s.claudeKey), gv = validGrok(s.grokKey), ready = cv && (write || gv);
+    const V = write ? UNSEL : SEL, E = write ? SEL : UNSEL;
+    const hint = (key, valid, prefix) => !key ? [write && prefix === 'xai-' ? 'Opcional no modo escrita — necessária apenas para alternar para voz durante a sessão.' : `Prefixo ${prefix}. Validação de formato ao digitar; a chave nunca é exibida por padrão.`, '#6e7178', '#2c3037']
+      : valid ? ['Formato válido. Guardada no keychain do sistema.', GREEN, 'oklch(0.7 0.12 145 / .55)']
+      : [`Formato inválido — a chave começa com ${prefix} e tem ao menos vinte caracteres depois do prefixo.`, RED, 'oklch(0.62 0.17 25 / .65)'];
+    const [claudeHint, claudeHintColor, claudeBorder] = hint(s.claudeKey, cv, 'sk-ant-');
+    const [grokHint, grokHintColor, grokBorder] = hint(s.grokKey, gv, 'xai-');
+    const voice = VOICES.find(v => v.id === s.voice) || VOICES[0];
+    const active = s.phase === 'speaking' || s.phase === 'listening';
+    const barColor = s.phase === 'speaking' ? BLUE : s.phase === 'listening' ? AMBER : '#6e7178';
+    const audioBars = React.createElement('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 3, height: 28 } },
+      [10, 18, 26, 16, 24, 14, 20].map((h, i) => React.createElement('span', { key: i, style: { width: 3, height: h, background: barColor, transformOrigin: 'center', transform: active ? undefined : 'scaleY(.25)', animation: `twBar ${0.9 + (i % 3) * 0.18}s ${i * 0.09}s infinite ease-in-out`, animationPlayState: active ? 'running' : 'paused', opacity: active ? 1 : .45, transition: 'background .2s' } })));
+    const recDot = React.createElement('span', { style: { width: 8, height: 8, borderRadius: '50%', background: RED, display: 'inline-block', animation: 'twPulse 1.4s infinite ease-in-out' } });
+    const phaseLabel = { speaking: 'Entrevistadora lendo a pergunta', listening: 'Ouvindo o cliente · transcrevendo', idle: 'Aguardando — aprofundar ou avançar', paused: 'Pausado — microfone fechado' }[s.phase];
+    const phaseColor = { speaking: BLUE, listening: AMBER, idle: '#6e7178', paused: AMBER }[s.phase];
+    const deepUsed = s.deepUsed.includes(s.idx), deepDisabled = !q.d || deepUsed || (write ? !s.typed.includes(s.idx) || s.paused : s.phase !== 'idle');
+    const blocks = BLOCKS.map((b, j) => { const open = s.open.includes(j); return { num: pad(j + 1), name: b.name, meta: b.meta, open, closed: !open,
+      toggle: () => this.setState(st => ({ open: st.open.includes(j) ? st.open.filter(x => x !== j) : [...st.open, j] })),
+      questions: Q.map((x, i) => ({ x, i })).filter(({ x }) => x.b === j).map(({ x, i }) => ({ n: pad(i + 1), t: x.t, isMc: !!x.mc, optCount: x.o ? x.o.length : 0 })) }; });
+    const chips = BLOCKS.map((b, j) => { const idxs = Q.map((x, i) => x.b === j ? i : -1).filter(i => i >= 0); const done = idxs.every(i => s.visited.includes(i)) && q.b !== j; const cur = q.b === j;
+      return { num: j + 1, name: b.name, done, border: cur ? AMBER : done ? '#33373e' : '#2c3037', color: cur ? '#e4e2dd' : done ? '#8d9098' : '#6e7178', go: () => this.goTo(idxs[0]) }; });
+    const chars = s.lines.reduce((n, l) => n + l.text.length + 24, 0);
+    return {
+      isSetup: s.screen === 'setup', isSession: s.screen === 'session', isDone: s.screen === 'done',
+      ready, notReady: !ready, startOpacity: ready ? 1 : .4,
+      isVoiceMode: !write, isWriteMode: write, setVoz: () => this.setMode('voz'), setEscrita: () => this.setMode('escrita'),
+      vozBg: V.bg, vozColor: V.color, vozShadow: V.shadow, escBg: E.bg, escColor: E.color, escShadow: E.shadow,
+      voiceOpacity: write ? .45 : 1, voiceUnavailable: !gv, voiceToggleOpacity: gv ? 1 : .4, voiceTitle: gv ? 'Alternar para voz' : 'Chave do Grok necessária para o modo voz',
+      startLabel: mode === 'tres' ? 'Iniciar sessão 1 de 3' : 'Iniciar entrevista',
+      startHint: ready ? `${write ? 'Modo escrita' : `Voz ${voice.name}`} · gravação em ${s.path}` : write ? 'Habilita quando a chave do Claude passar na validação de formato.' : 'Habilita quando as duas chaves passarem na validação de formato.',
+      claudeKey: s.claudeKey, grokKey: s.grokKey, claudeType: s.showClaude ? 'text' : 'password', grokType: s.showGrok ? 'text' : 'password',
+      claudeShown: s.showClaude, claudeHidden: !s.showClaude, grokShown: s.showGrok, grokHidden: !s.showGrok,
+      claudeValid: cv, grokValid: gv, claudeHint, claudeHintColor, claudeBorder, grokHint, grokHintColor, grokBorder,
+      onClaudeKey: e => this.setState({ claudeKey: e.target.value.trim() }), onGrokKey: e => this.setState({ grokKey: e.target.value.trim() }),
+      toggleClaude: () => this.setState(st => ({ showClaude: !st.showClaude })), toggleGrok: () => this.setState(st => ({ showGrok: !st.showGrok })),
+      voices: VOICES.map(v => ({ name: v.name, desc: v.desc, selected: v.id === s.voice, border: v.id === s.voice ? BLUE : '#2c3037', dot: v.id === s.voice ? BLUE : 'transparent', select: () => this.setState({ voice: v.id }) })),
+      path: s.path, onPath: e => this.setState({ path: e.target.value }),
+      startSession: () => this.startSession(), blocks,
+      progressPct: Math.round((s.screen === 'done' ? TOTAL : s.idx) / TOTAL * 100) + '%',
+      sessionLabel: `${mode === 'tres' ? 'Sessão 1 de 3' : 'Sessão única'} · ${q.b < 8 ? `Bloco ${q.b + 1} de 8` : 'Fechamento'}`,
+      recording: !write && !s.paused, writing: write && !s.paused, paused: s.paused, notPaused: !s.paused, recDot, elapsedLabel: fmt(s.elapsed),
+      isVoice: !write, isWriting: write, draft: s.draft, onDraft: e => this.setState({ draft: e.target.value }),
+      onDraftKey: e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); this.submit(); } },
+      submit: () => this.submit(), fillExample: () => this.fillExample(),
+      submitDisabled: s.paused || (q.mc && !s.deepOpen ? s.mcPick == null : !s.draft.trim()), submitOpacity: s.paused || (q.mc && !s.deepOpen ? s.mcPick == null : !s.draft.trim()) ? .4 : 1,
+      answered: s.typed.includes(s.idx), answerLabel: s.deepOpen ? 'Resposta ao aprofundamento' : q.mc ? 'Comentário (opcional)' : 'Sua resposta',
+      draftPlaceholder: s.deepOpen ? 'Dê o exemplo concreto pedido…' : q.mc ? 'Escolha uma opção acima; comente se quiser.' : 'Escreva a resposta como falaria.',
+      writeLabel: s.paused ? 'Pausado — o tempo está parado' : s.deepOpen ? 'Aprofundamento em aberto — registre a resposta' : s.typed.includes(s.idx) ? 'Resposta registrada — aprofundar ou avançar' : 'Escrita — digite e registre a resposta',
+      endSession: () => this.setState({ endConfirm: true }), cancelEnd: () => this.setState({ endConfirm: false }), confirmEnd: () => this.finish(), stop: e => e.stopPropagation(),
+      endConfirm: s.endConfirm, remainingLabel: `${s.visited.length} de ${TOTAL} perguntas foram feitas.`,
+      blockLabel: q.b < 8 ? `Bloco ${q.b + 1} · ${BLOCKS[q.b].name}` : 'Fechamento · fora da contagem',
+      curIsMc: !!q.mc, curIsOpen: !q.mc, questionLabel: `Pergunta ${s.idx + 1} de ${TOTAL}`, curText: q.t, curRule: q.r,
+      curOpts: (q.o || []).map((text, i) => ({ letter: String.fromCharCode(65 + i), text, voice: !write, write, selected: s.mcPick === i, shadow: s.mcPick === i ? 'inset 0 0 0 1px oklch(0.74 0.11 215)' : 'none', pick: () => this.setState({ mcPick: i }) })),
+      audioBars, phaseLabel, phaseColor, voiceName: voice.name,
+      atFirst: s.idx === 0, prevOpacity: s.idx === 0 ? .4 : 1, prev: () => this.goTo(s.idx - 1),
+      togglePause: () => this.togglePause(),
+      deepen: () => this.deepen(), deepDisabled, deepOpacity: deepDisabled ? .4 : 1, deepLabel: !q.d ? 'Sem aprofundamento' : deepUsed ? 'Aprofundamento usado' : 'Aprofundar',
+      next: () => (s.idx === Q.length - 1 ? this.finish() : this.goTo(s.idx + 1)), nextLabel: s.idx === Q.length - 1 ? 'Encerrar e gravar' : 'Próxima',
+      lines: s.lines.map(l => ({ time: l.time, text: l.text, isInterviewer: l.who === 'i', isClient: l.who === 'c', clientLabel: l.typed ? 'Cliente · digitado' : 'Cliente' })), lineCount: s.lines.length,
+      listening: s.phase === 'listening', nowStamp: stamp(s.elapsed), transcriptRef: this.transcriptRef, chips,
+      finishedLabel: fmt(s.finishedAt), askedLabel: `${s.visited.length} de ${TOTAL}`, fileSize: `${Math.max(1, Math.round(chars / 1024))} KB`,
+      reset: () => this.reset(), jumpSetup: () => this.jump('setup'), jumpSetupValid: () => this.jump('setupValid'), jumpSession: () => this.jump('session'), jumpSessionWrite: () => this.jump('sessionWrite'), jumpDone: () => this.jump('done'),
+    };
+  }
+}
+</script>
+</body>
+</html>

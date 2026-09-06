@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      CSP: o renderer não fala com a rede. Toda chamada às APIs (Claude e Grok)
+      acontece no processo principal, onde as chaves vivem. `connect-src 'none'`
+      é o que garante, na marra, que uma chave nunca vaze por aqui.
+      `media-src blob:` existe só para tocar o áudio que o main devolve.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; media-src blob:; connect-src 'none'"
+    />
+    <title>Entrevista Twin</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
