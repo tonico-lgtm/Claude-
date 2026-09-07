@@ -1,0 +1,181 @@
+# Empacota o Entrevista Twin para macOS num runner macOS da GitHub e publica o
+# resultado (DMG e ZIP com o .app universal) na página de Releases.
+#
+# Acionamento: manual — GitHub › Actions › "Empacotar para macOS" › "Run workflow".
+#
+# Assinatura:
+#   - Sem certificado: o .app sai com assinatura ad hoc. Abre em qualquer Mac; na
+#     primeira execução o macOS pede confirmação em Ajustes do Sistema ›
+#     Privacidade e Segurança › "Abrir mesmo assim".
+#   - Com os segredos CSC_LINK (certificado "Developer ID Application" em base64 .p12)
+#     e CSC_KEY_PASSWORD, o electron-builder assina de verdade; com APPLE_ID,
+#     APPLE_APP_SPECIFIC_PASSWORD e APPLE_TEAM_ID, também notariza. Caminho não
+#     exercitado ainda (não há certificado).
+#
+# Chaves embutidas (opcional): com os segredos ENTREVISTA_TWIN_CLAUDE_KEY e
+# ENTREVISTA_TWIN_GROK_KEY, o app já sai com as chaves dentro de Contents/Resources —
+# e só se o repositório for privado, porque a Release é pública num repositório público.
+
+name: Empacotar para macOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      publicar:
+        description: "Publicar como Release (senão, só como artefato deste workflow)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: empacotar-mac
+  cancel-in-progress: false
+
+jobs:
+  mac:
+    name: macOS (universal)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: app
+    # Os segredos de assinatura NÃO entram no ambiente do job: um segredo ausente vira
+    # string vazia, e o electron-builder trata CSC_LINK vazio como certificado a importar.
+    # Eles só são expostos nos passos que os usam.
+    env:
+      CHAVE_CLAUDE: ${{ secrets.ENTREVISTA_TWIN_CLAUDE_KEY }}
+      CHAVE_GROK: ${{ secrets.ENTREVISTA_TWIN_GROK_KEY }}
+      REPOSITORIO_PRIVADO: ${{ github.event.repository.private }}
+
+    steps:
+      - name: Obter o código
+        uses: actions/checkout@v5
+
+      - name: Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Verificar (typecheck e testes)
+        run: npm run typecheck && npm test
+
+      - name: Versão
+        id: versao
+        run: echo "versao=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Chaves embutidas (só com os segredos e só em repositório privado)
+        id: chaves
+        run: |
+          echo "embutidas=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$CHAVE_CLAUDE" ] && [ -z "$CHAVE_GROK" ]; then
+            echo "Sem segredos de chaves: o app sai sem chaves (o cliente as coloca em chaves.local.json)."
+          elif [ "$REPOSITORIO_PRIVADO" != "true" ]; then
+            echo "::warning::Há segredos de chaves, mas o repositório é público: as chaves NÃO foram embutidas, porque a Release seria pública. Torne o repositório privado e rode de novo."
+          else
+            # Cada chave presente entra; a ausente fica vazia (o app a trata como não provisionada).
+            node -e '
+              const fs = require("node:fs");
+              const conteudo = { claude: process.env.CHAVE_CLAUDE || "", grok: process.env.CHAVE_GROK || "" };
+              fs.writeFileSync("build/extra/chaves.local.json", JSON.stringify(conteudo, null, 2) + "\n");
+            '
+            echo "embutidas=true" >> "$GITHUB_OUTPUT"
+            [ -n "$CHAVE_CLAUDE" ] && echo "Chave do Claude embutida." || echo "::warning::Sem segredo ENTREVISTA_TWIN_CLAUDE_KEY: o app sai sem a chave do Claude."
+            [ -n "$CHAVE_GROK" ] && echo "Chave do Grok embutida." || echo "::warning::Sem segredo ENTREVISTA_TWIN_GROK_KEY: o app sai sem a chave do Grok."
+          fi
+
+      - name: Modo de assinatura
+        id: assinatura
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$CSC_LINK" ]; then echo "modo=certificado" >> "$GITHUB_OUTPUT"; else echo "modo=adhoc" >> "$GITHUB_OUTPUT"; fi
+          if [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then echo "notarizar=true" >> "$GITHUB_OUTPUT"; else echo "notarizar=false" >> "$GITHUB_OUTPUT"; fi
+
+      # --- Sem certificado: empacota, assina ad hoc e só então gera DMG e ZIP. ---
+      - name: Empacotar o .app (sem certificado)
+        if: steps.assinatura.outputs.modo == 'adhoc'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npm run build && npx electron-builder --mac dir --universal --publish never
+
+      - name: Assinar ad hoc
+        if: steps.assinatura.outputs.modo == 'adhoc'
+        run: |
+          APP="release/mac-universal/Entrevista Twin.app"
+          codesign --force --deep --sign - --entitlements build/entitlements.mac.plist "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+
+      - name: Gerar DMG e ZIP (sem certificado)
+        if: steps.assinatura.outputs.modo == 'adhoc'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx electron-builder --mac dmg zip --universal --publish never --prepackaged "release/mac-universal/Entrevista Twin.app"
+
+      # --- Com certificado: o electron-builder assina (e notariza, se houver credenciais). ---
+      - name: Empacotar, assinar e notarizar (com certificado)
+        if: steps.assinatura.outputs.modo == 'certificado'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npm run build && npx electron-builder --mac --universal --publish never --config.mac.notarize=${{ steps.assinatura.outputs.notarizar }}
+
+      - name: Listar o resultado
+        run: ls -la release/*.dmg release/*.zip
+
+      # Só quando não se publica Release: o artefato consome a cota de armazenamento do Actions
+      # (500 MB em repositório privado gratuito), e a Release já é o canal de entrega.
+      - name: Guardar como artefato do workflow
+        if: ${{ !inputs.publicar }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: entrevista-twin-macos-${{ steps.versao.outputs.versao }}-b${{ github.run_number }}
+          path: |
+            app/release/*.dmg
+            app/release/*.zip
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Publicar Release
+        if: ${{ inputs.publicar }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.versao.outputs.versao }}-b${{ github.run_number }}
+          MODO: ${{ steps.assinatura.outputs.modo }}
+          EMBUTIDAS: ${{ steps.chaves.outputs.embutidas }}
+        run: |
+          {
+            echo "Entrevista Twin ${{ steps.versao.outputs.versao }}, build ${{ github.run_number }} (macOS, universal: Intel e Apple Silicon)."
+            echo
+            echo "**Instalar:** abra o DMG e arraste o Entrevista Twin para Aplicativos."
+            if [ "$MODO" = "adhoc" ]; then
+              echo
+              echo "**Primeira abertura:** este build não tem certificado da Apple. Se o macOS disser que não pôde verificar o app, vá a Ajustes do Sistema › Privacidade e Segurança e clique em \"Abrir mesmo assim\"; isso só é preciso uma vez."
+            fi
+            echo
+            if [ "$EMBUTIDAS" = "true" ]; then
+              echo "**Chaves de API:** já estão dentro do app; não há nada a configurar. (Se a tela disser \"sem chaves\", falta algum segredo na esteira.)"
+            else
+              echo "**Chaves de API:** se o app disser \"sem chaves\", clique em \"Abrir o arquivo de chaves\", cole as chaves entre as aspas, salve e clique em \"Verificar de novo\"."
+            fi
+            echo
+            echo "Commit: ${{ github.sha }}"
+          } > notas.md
+          gh release create "$TAG" release/*.dmg release/*.zip \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --title "Entrevista Twin ${{ steps.versao.outputs.versao }} (build ${{ github.run_number }})" \
+            --notes-file notas.md \
+            --latest

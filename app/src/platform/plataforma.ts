@@ -25,11 +25,18 @@ import type {
 
 export interface Plataforma {
   readonly chaves: {
-    /** Só diz se há chave guardada; nunca devolve a chave. */
+    /**
+     * Só diz a situação de cada chave provisionada (ambiente ou
+     * `chaves.local.json`); nunca devolve a chave. Relê as fontes a cada
+     * chamada, para que um arquivo recém-criado valha sem reabrir o app.
+     */
     estado(): Promise<EstadoChaves>;
-    /** Valida o formato, cifra e guarda na máquina. Rejeita formato inválido. */
-    guardar(motor: Motor, chave: string): Promise<EstadoChaves>;
-    remover(motor: Motor): Promise<EstadoChaves>;
+    /**
+     * Garante que `chaves.local.json` exista no lugar esperado (criando um
+     * modelo com as duas chaves vazias, se preciso) e o abre no editor de
+     * texto do sistema. Devolve o caminho do arquivo.
+     */
+    prepararArquivo(): Promise<string>;
     /** Faz uma chamada mínima a cada API para confirmar que a chave é aceita. */
     validar(motores: readonly Motor[]): Promise<readonly ResultadoValidacaoChave[]>;
   };

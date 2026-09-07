@@ -33,8 +33,7 @@ import type { Plataforma } from '../src/platform/plataforma';
 /** Deve bater com `CANAIS` de `shared/tipos.ts`; o `satisfies` garante. */
 const CANAL = {
   chavesEstado: 'chaves:estado',
-  chavesGuardar: 'chaves:guardar',
-  chavesRemover: 'chaves:remover',
+  chavesPrepararArquivo: 'chaves:prepararArquivo',
   chavesValidar: 'chaves:validar',
 
   configLer: 'config:ler',
@@ -65,9 +64,7 @@ const NOME = 'entrevistaTwin' satisfies typeof NOME_PONTE;
 const api: Plataforma = {
   chaves: {
     estado: (): Promise<EstadoChaves> => ipcRenderer.invoke(CANAL.chavesEstado),
-    guardar: (motor: Motor, chave: string): Promise<EstadoChaves> =>
-      ipcRenderer.invoke(CANAL.chavesGuardar, motor, chave),
-    remover: (motor: Motor): Promise<EstadoChaves> => ipcRenderer.invoke(CANAL.chavesRemover, motor),
+    prepararArquivo: (): Promise<string> => ipcRenderer.invoke(CANAL.chavesPrepararArquivo),
     validar: (motores: readonly Motor[]): Promise<readonly ResultadoValidacaoChave[]> =>
       ipcRenderer.invoke(CANAL.chavesValidar, [...motores]),
   },

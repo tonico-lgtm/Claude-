@@ -18,11 +18,12 @@ app/
   vitest.config.ts            testes puros (node), `src/**/*.test.ts`
   tsconfig.json               renderer: inclui `src/` inteiro, lib DOM, types só `vite/client`
   electron/tsconfig.json      main + preload: inclui electron/, src/roteiro, src/engine, src/shared, src/services
-  electron/main.ts            janela, IPC, safeStorage, disco, clientes Claude e Grok
+  electron/main.ts            janela, IPC, chaves provisionadas (ambiente/arquivo), disco, clientes Claude e Grok
   electron/preload.ts         contextBridge → window.entrevistaTwin (mesma forma de `Plataforma`)
   src/main.tsx                raiz React
   src/App.tsx                 roteador de telas: setup → sessao → fim
   src/shared/tipos.ts         tipos, constantes, canais IPC, validadores (puro)  ← CONTRATO
+  src/shared/chaves.ts        provisionamento das chaves: fontes em ordem, formato, situação (puro, + testes)
   src/roteiro/roteiro.ts      roteiro v1 (pronto)                                ← CONTRATO
   src/engine/sessao.ts        máquina de estados pura da sessão (reduzir + efeitos)
   src/engine/transcricao.ts   Markdown da transcrição, nome do arquivo (puro)
@@ -33,7 +34,7 @@ app/
   src/services/simulacao.ts   respostas fictícias e condução simulada (puro; roda em qualquer lado)
   src/platform/plataforma.ts  interface `Plataforma`                             ← CONTRATO
   src/platform/electron.ts    implementação via window.entrevistaTwin
-  src/platform/navegador.ts   implementação para `npm run dev` (localStorage + simulação + speechSynthesis)
+  src/platform/navegador.ts   implementação para `npm run dev` (localStorage + simulação + speechSynthesis; chaves sempre «presentes»)
   src/platform/index.ts       escolhe a implementação
   src/audio/reprodutor.ts     toca ArrayBuffer de áudio (Blob URL)
   src/audio/gravador.ts       microfone → WAV 16 kHz mono; detecção de silêncio
@@ -300,14 +301,24 @@ Base URL padrão `https://api.x.ai/v1`, configurável por opção e pela variáv
   `systemPreferences.askForMediaAccess('microphone')` antes da primeira captura.
 - Produção: `loadFile(path.join(__dirname, '../../renderer/index.html'))`. Desenvolvimento
   (`ENTREVISTA_TWIN_DEV=1`): `loadURL('http://localhost:5273')`.
-- Chaves: `safeStorage.encryptString` → base64 em `<userData>/chaves.json` (`{ claude?: string, grok?: string }`).
-  Se `safeStorage.isEncryptionAvailable()` for falso, recusar guardar e explicar. Descriptografar só na hora
-  de usar; nunca enviar ao renderer.
+- Chaves: **provisionadas, nunca digitadas nem gravadas pelo app.** A cada uso o main monta as fontes, em
+  ordem — variáveis `ENTREVISTA_TWIN_CLAUDE_KEY` / `ENTREVISTA_TWIN_GROK_KEY`, depois
+  `<appPath>/chaves.local.json`, depois `<userData>/chaves.local.json` (`{ "claude": "sk-ant-…", "grok": "xai-…" }`) —
+  e `shared/chaves.ts → provisionarChaves()` decide, motor a motor: vale a primeira fonte com valor; formato
+  errado é `invalida` e não cai na fonte seguinte. `chaves:estado` devolve só a situação (`ausente` /
+  `invalida` / `presente`); em simulação, tudo `presente`. A chave em claro só existe dentro do handler que a
+  pediu; nunca vai ao renderer. `InfoSistema.arquivoDeChaves` diz à tela onde procurar o arquivo.
+  Empacotado (`app.isPackaged`), a ordem dos arquivos é `<userData>` e depois `process.resourcesPath`
+  (onde a esteira pode ter injetado as chaves). `chaves:prepararArquivo` cria o arquivo modelo
+  (`{ "claude": "", "grok": "" }`, modo 0600) no primeiro caminho e o abre com `shell.openPath`
+  (ou revela na pasta, se não houver editor). A leitura (`interpretarTextoDeChaves`) tolera BOM e aspas
+  tipográficas; JSON que ainda assim não parseia marca a fonte como `ilegivel`, e essa situação
+  interrompe a busca para aparecer na tela.
 - Config (`<userData>/config.json`): `ConfiguracaoApp`.
 - Destino padrão: `path.join(app.getPath('documents'), 'Entrevista Twin')`. `dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] })`.
 - Transcrição: `fs.promises.appendFile` com `mkdir -p` antes. Progresso: escrita atômica (`tmp` + `rename`).
 - Serviços: `ENTREVISTA_TWIN_SIMULACAO=1` → usa `simulacao.ts` para voz e condução (sem rede). Senão,
-  Grok e Claude reais com as chaves descriptografadas. Sem chave → `ErroApp 'chave-ausente'`.
+  Grok e Claude reais com as chaves provisionadas. Sem chave → `ErroApp 'chave-ausente'`.
 - Cada `ipcMain.handle` valida o tipo dos argumentos (strings, números, ArrayBuffer) e converte erros com
   `paraErroApp` — o IPC não preserva classes de erro.
 - Preload: `contextBridge.exposeInMainWorld(NOME_PONTE, api)` onde `api` tem exatamente a forma de
@@ -320,8 +331,7 @@ Base URL padrão `https://api.x.ai/v1`, configurável por opção e pela variáv
 
 - `platform/electron.ts`: `export function plataformaElectron(): Plataforma` → embrulha `window.entrevistaTwin`
   (declaração global em `platform/ponte.d.ts` ou no próprio arquivo).
-- `platform/navegador.ts`: chaves em `localStorage` (só formato; aviso de que é ambiente de
-  desenvolvimento), config e progresso em `localStorage`, transcrição acumulada em `localStorage` por
+- `platform/navegador.ts`: chaves sempre `presente` (não há chave: tudo é simulado), config e progresso em `localStorage`, transcrição acumulada em `localStorage` por
   arquivo, `destino.escolher` devolve a própria string, `voz.falar` usa `speechSynthesis` (pt-BR) e
   devolve um WAV mudo do mesmo tamanho que a simulação (o controlador toca o WAV enquanto o
   `speechSynthesis` fala — ou, mais simples, `falar` só devolve o WAV mudo e a fala real fica a cargo
@@ -357,10 +367,14 @@ Diferenças obrigatórias em relação ao protótipo (vêm do brief v2 e do HAND
 
 - Contagem: **26 perguntas + fechamento**; nunca "27". Cabeçalho do roteiro: `8 blocos · 26 perguntas + fechamento · 3 sessões de ~25 min`.
 - Roteiro agrupado por **sessão** (três grupos com estado: concluída com data / atual / pendente), blocos em acordeão dentro.
-- Vozes **Helios** e **Leo**, sem selo "placeholder", com botão "Ouvir amostra" (só com chave do Grok válida).
+- Vozes **Helios** e **Leo**, sem selo "placeholder", com botão "Ouvir amostra" (só com a chave do Grok provisionada).
 - Destino é **pasta**; a dica diz que cada sessão gera um arquivo e mostra o nome que o próximo terá.
 - Botão principal com os rótulos do §2. Abaixo dele, erro de validação real das chaves, se houver.
-- Chaves guardadas aparecem como campo com `••••••••` e "Trocar"; digitar uma nova substitui.
+- **Sem campos de chave.** Se faltar chave necessária ao modo (Claude sempre; Grok só em voz), um aviso
+  abaixo do botão diz qual falta ou está malformada, onde colocá-la (`InfoSistema.arquivoDeChaves` ou a
+  variável de ambiente) e oferece "Abrir o arquivo de chaves" (só no Electron; cria o modelo e o abre no
+  editor) e "Verificar de novo", que relê as fontes sem reabrir o app. Cabeçalho:
+  `sem chaves` / `pronto para iniciar` / `entrevista concluída`.
 - Sessão: cabeçalho `SESSÃO 2 DE 3 · Bloco 5 de 8`; barra de progresso mede a sessão atual;
   chips só dos blocos da sessão; rótulo `Pergunta 12 de 26`.
 - Enquanto ouve, botão "Concluir resposta" ao lado do indicador de áudio (parada manual).
@@ -376,3 +390,26 @@ Diferenças obrigatórias em relação ao protótipo (vêm do brief v2 e do HAND
 
 Destilação, pasta `twin/`, ingestão de documentos, revisão do conteúdo, agentes consumidores, nuvem,
 onboarding, login, métricas. A tela final mostra o caminho do arquivo e nada mais.
+
+---
+
+## 12. Empacotamento (`app/electron-builder.yml`)
+
+- **electron-builder 26.** `appId br.com.monteirodasilva.entrevistatwin`, `productName Entrevista Twin`
+  (também em `package.json`, para que `app.getPath('userData')` seja `…/Entrevista Twin`). Entra no
+  `app.asar`: `dist/**` (renderer e main), `package.json` e as dependências de produção. Saída em
+  `app/release/` (ignorada pelo git).
+- **macOS:** alvo `dmg` + `zip`, arquitetura `universal` (Intel e Apple Silicon num só app; `mergeASARs`).
+  `hardenedRuntime` com `build/entitlements.mac.plist` (microfone, JIT); `NSMicrophoneUsageDescription`
+  via `extendInfo`; ícone `build/icon.png` (1024², convertido pelo electron-builder). `extraResources`
+  copia `build/extra/` para `Contents/Resources` — vazio no repositório; a esteira pode pôr ali
+  `chaves.local.json`.
+- **Esteira** (`.github/workflows/empacotar-mac.yml`, `workflow_dispatch`): `npm ci`, typecheck, testes;
+  sem certificado, `electron-builder --mac dir --universal` com `CSC_IDENTITY_AUTO_DISCOVERY=false`,
+  depois `codesign --force --deep --sign -` (ad hoc; obrigatório para o binário arm64 abrir) e
+  `electron-builder --mac dmg zip --prepackaged`; com `CSC_LINK`/`CSC_KEY_PASSWORD`, o electron-builder
+  assina e, com `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID`, notariza. Publica artefato do
+  workflow e, por padrão, uma Release `v<versão>-b<execução>` com o DMG e o ZIP (`gh release create`).
+- **Por que não empacotar o macOS aqui:** o electron-builder só gera alvos macOS em macOS, e a assinatura
+  (mesmo ad hoc) exige o `codesign` da Apple. O pacote Linux (`npm run empacotar:linux`, alvo `dir`) serve
+  para validar a configuração: o app sobe do asar sob Xvfb.

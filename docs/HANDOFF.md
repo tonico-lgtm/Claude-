@@ -25,7 +25,7 @@ não foi testada com microfone real e **não passou por revisão de código inde
 | `app/src/services/claude.ts` | Pronto — decisão de aprofundamento com `claude-opus-5`, `messages.parse` + `zodOutputFormat` (15 testes com `fetch` falso). **Nunca chamou a API real** |
 | `app/src/services/grok.ts` | **Provisório** — TTS (`POST /v1/tts`) e transcrição (`POST /v1/stt`) escritos a partir de fontes secundárias, porque `docs.x.ai` estava bloqueado na sessão (17 testes com `fetch` falso). **Nunca chamou a API real** |
 | `app/src/services/simulacao.ts` | Pronto — respostas fictícias do protótipo, condutor e voz simulados (13 testes) |
-| `app/electron/main.ts`, `electron/preload.ts` | Pronto — janela, IPC com validação de argumentos, `safeStorage`, escrita em disco, clientes Claude e Grok; preload compatível com `sandbox: true` |
+| `app/electron/main.ts`, `electron/preload.ts` | Pronto — janela, IPC com validação de argumentos, chaves provisionadas por ambiente ou `chaves.local.json` (sem `safeStorage`), escrita em disco, clientes Claude e Grok; preload compatível com `sandbox: true` |
 | `app/src/platform/electron.ts`, `navegador.ts`, `index.ts`, `ponte.d.ts` | Pronto — adaptador Electron e adaptador de navegador (para `npm run dev`, tudo simulado) |
 | `app/src/audio/gravador.ts`, `reprodutor.ts` | Escrito — captura do microfone em WAV 16 kHz mono com detecção de silêncio; reprodução por Blob URL. **Não testado com microfone real** |
 | `app/src/hooks/useSessao.ts` | Pronto — controlador que liga motor, plataforma e áudio |
@@ -35,13 +35,28 @@ não foi testada com microfone real e **não passou por revisão de código inde
 ### O que foi verificado
 
 - `npm run typecheck` limpo nos dois projetos (renderer e Electron).
-- `npm test`: 127 testes passando (motor, transcrição, progresso, serviços, simulação, tipos).
+- `npm test`: 135 testes passando (motor, transcrição, progresso, serviços, simulação, tipos, chaves).
 - `npm run build`: renderer e main emitidos em `dist/`.
+- **Fumaça do Setup sem chaves na tela** (2026-09-07, depois do PR 1; Electron real sob Xvfb e navegador):
+  fora da simulação e sem `chaves.local.json`, o Setup não tem campo de chave, o cabeçalho diz "sem
+  chaves", o aviso aponta as duas chaves ausentes com o caminho do arquivo e a variável de ambiente, e o
+  botão fica desabilitado; em modo escrita só a chave do Claude é cobrada; arquivo com formato errado →
+  "não tem o formato esperado" após "Verificar de novo"; arquivo com formato válido → aviso some, botão e
+  amostra de voz habilitam, sem reabrir o app; "Iniciar" com chaves fictícias voltou "Chave do Claude
+  recusada" / "Chave do Grok recusada". **Correção posterior:** só a recusa do Claude veio da API
+  (`api.anthropic.com` é alcançado diretamente; a Anthropic devolve `authentication_error`); a do Grok veio
+  do proxy desta sessão, que bloqueia `api.x.ai` (CONNECT 403, "Host not in allowlist") e cujo 403 o
+  serviço interpreta como chave recusada. O texto das chaves não aparece no DOM do renderer; em simulação,
+  nada é cobrado e a sessão abre. No navegador, idem, sem aviso algum.
+- **Fumaça do app empacotado** (2026-09-07; `npm run empacotar:linux`, binário de `release/linux-unpacked`
+  sob Xvfb): sobe do `app.asar` (main, preload, renderer, SDK da Anthropic dentro; `chaves.local.json`
+  fora); em simulação abre pronto; fora dela aponta `<userData>/Entrevista Twin/chaves.local.json`;
+  "Abrir o arquivo de chaves" cria o modelo com as duas chaves vazias; JSON quebrado → "não pôde ser lido
+  como JSON"; arquivo com aspas tipográficas e chaves de formato válido → aceito sem reabrir.
 - **Fumaça no Electron real** (Linux, Xvfb, `ENTREVISTA_TWIN_SIMULACAO=1`, Playwright): janela abre;
   `window.entrevistaTwin` expõe exatamente os oito grupos do contrato; `require`, `process` e
   `Buffer` indefinidos no renderer; `fetch` e WebSocket bloqueados pela CSP (`connect-src 'none'`);
-  o `preload.js` emitido só faz `require("electron")`; as chaves em `chaves.json` ficam cifradas
-  (prefixo `v10` do OSCrypt, sem o texto da chave); sessão 1 em escrita com aprofundamento automático,
+  o `preload.js` emitido só faz `require("electron")`; sessão 1 em escrita com aprofundamento automático,
   troca para voz com leitura do WAV simulado, "Concluir resposta", volta a escrita, diálogo de
   encerrar, tela de fim incompleta, `sessao-1-quem-e-<data>.md` e `progresso.json` em disco, reabertura
   com "RETOMAR SESSÃO 1", retomada no bloco 2 (o bloco onde parou) e novo encerramento.
@@ -68,9 +83,6 @@ não foi testada com microfone real e **não passou por revisão de código inde
 
 ### O que a fumaça mostrou e ainda não foi tratado
 
-- Neste Linux sem keyring, `safeStorage.isEncryptionAvailable()` é `false` e o app **recusa guardar
-  as chaves**, com a mensagem explicando. É o comportamento desenhado (decisão 10); em macOS e
-  Windows o keychain existe. Se o cliente usar Linux, é preciso decidir o que fazer (ver §3).
 - "Registrar resposta" continua habilitado depois de a pergunta já ter resposta: um novo registro
   grava outra fala do cliente na mesma pergunta. Fiel ao que foi dito, mas permite duplicar por
   descuido. Avaliar se o botão deve ser desabilitado depois de registrar.
@@ -100,13 +112,13 @@ não foi testada com microfone real e **não passou por revisão de código inde
 7. **Modo escrita existe, é prioritário e é alternável a qualquer momento da sessão.** Confirmado pelo cliente em 2026-09-07 ("é prioritário e modo escrita já implementado"). A dúvida do pacote anterior está encerrada.
 8. **Aprofundamento.** Depois de cada resposta à pergunta principal, o Claude decide sozinho se faz a única pergunta de aprofundamento (e a formula). O botão "Aprofundar" força a formulação quando o Claude não aprofundou. Uma vez por resposta, nunca em perguntas com `permiteAprofundamento: false`, nunca depois da resposta ao aprofundamento.
 9. **Sessão incompleta recomeça do bloco onde parou, no mesmo arquivo**, com um marcador de retomada; a contagem "N de M" na tela de fim e no rodapé usa a união das execuções.
-10. **Sem keychain, sem chaves.** Se `safeStorage.isEncryptionAvailable()` for falso, o app recusa guardar e explica. Não há fallback em texto claro.
+10. **Chaves provisionadas fora da tela, nunca digitadas.** Pedido do cliente em 2026-09-07 ("remover a necessidade de fornecer chaves para iniciar a sessão"). O main lê, a cada uso, as variáveis `ENTREVISTA_TWIN_CLAUDE_KEY` e `ENTREVISTA_TWIN_GROK_KEY` e, na falta delas, o arquivo `chaves.local.json` (primeiro ao lado do `package.json` do app, depois em userData). A primeira fonte com valor vale; formato errado é apontado e não é mascarado por outra fonte (`src/shared/chaves.ts`). O Setup não tem campos de chave: só um aviso com o caminho do arquivo quando falta alguma, o botão "Abrir o arquivo de chaves" (cria o modelo com as chaves vazias e o abre no editor do sistema) e o botão "Verificar de novo". A leitura do arquivo tolera BOM e aspas tipográficas; JSON quebrado aparece como "ilegível", não como "não encontrada". Empacotado, o arquivo fica em `~/Library/Application Support/Entrevista Twin/`; em `npm start`, ao lado do `package.json`. Esta decisão substitui a anterior ("sem keychain, sem chaves", com `safeStorage`): o app não guarda mais chave nenhuma, e `chaves.local.json` está no `.gitignore`. Contrapartida assumida: a chave fica em texto claro num arquivo local do cliente, e não cifrada no keychain.
 
 ### Técnicas
 
 11. **Stack: Electron 33 + React 18 + Vite 6 + TypeScript 5.** Confirmada pelo uso; não foi contestada.
 12. **Plataforma atrás de um adaptador fino** (`src/platform/plataforma.ts`). Keychain, disco, microfone, voz e condução ficam atrás da interface. O adaptador de navegador prova que as telas não dependem do Electron.
-13. **As chaves nunca entram no processo renderer.** Toda chamada às APIs roda no main, onde a chave vive (`safeStorage`). `index.html` declara `connect-src 'none'`; `sandbox: true` e `contextIsolation: true` na janela; o preload não faz `require` de módulo local. Verificado na fumaça.
+13. **As chaves nunca entram no processo renderer.** Toda chamada às APIs roda no main, que lê a chave das fontes da decisão 10 na hora de usar. `index.html` declara `connect-src 'none'`; `sandbox: true` e `contextIsolation: true` na janela; o preload não faz `require` de módulo local. Verificado na fumaça.
 14. **Modelo do Claude: `claude-opus-5`**, via `client.messages.parse()` com `output_config: { effort: 'low', format: zodOutputFormat(...) }` e sem `thinking` (o padrão do Opus 5 já é adaptativo). `stop_reason === "refusal"` → não aprofundar. Qualquer erro → não aprofundar, com o motivo no card "Claude". O SDK exige `zod/v4` no `zodOutputFormat`; por isso `claude.ts` importa `from 'zod/v4'` (o pacote `zod` 3.25 traz esse subcaminho).
 15. **Transcrição gravada incrementalmente (append).** Cabeçalho ao abrir, uma fala por escrita, rodapé ao encerrar. Um crash não perde nada.
 16. **Simulação sem rede.** `ENTREVISTA_TWIN_SIMULACAO=1` no Electron troca voz e condução pelos serviços de `simulacao.ts`; o adaptador de navegador é sempre simulado. Selo "SIMULAÇÃO" no cabeçalho.
@@ -121,7 +133,12 @@ Na ordem em que eu faria:
 1. **Chamada real ao Grok** com uma chave `xai-`: rodar o app fora da simulação, ler uma pergunta e
    transcrever uma resposta. Conferir em `docs.x.ai` rota, campos (`voice_id`, `language`,
    `output_format`) e a forma da resposta do `/v1/stt`; ajustar `src/services/grok.ts` e os testes.
-   `ENTREVISTA_TWIN_XAI_BASE_URL` sobrescreve a base URL sem tocar no código.
+   `ENTREVISTA_TWIN_XAI_BASE_URL` sobrescreve a base URL sem tocar no código. **Tentativa em
+   2026-09-07 com a chave real do cliente:** bloqueada pelo proxy da sessão de Claude Code (`api.x.ai`
+   fora da lista de egress do ambiente; `api.anthropic.com` é liberado). Para repetir daqui é preciso
+   incluir `api.x.ai` nas permissões de rede do ambiente, em claude.ai/code; o roteiro do teste está
+   pronto (validar a chave, TTS com Helios e Leo, STT com o MP3 devolvido e com WAV 16 kHz mono como o app
+   envia). Alternativa: rodar o app no Mac com a chave em `chaves.local.json` e relatar o que acontecer.
 2. **Chamada real ao Claude** com uma chave `sk-ant-`: confirmar `messages.parse` com `claude-opus-5`,
    medir a latência com `effort: 'low'` e ler algumas decisões para calibrar o prompt de sistema
    (`montarSistema` em `claude.ts`). Avaliar o parâmetro `fallbacks` (beta) para recusas.
@@ -130,11 +147,22 @@ Na ordem em que eu faria:
 4. **Revisão de código independente** (pulada em 2026-09-07): motor, controlador (`useSessao`),
    Electron/segurança, serviços, telas e escopo. As dimensões e os critérios estão descritos no
    histórico desta sessão; qualquer revisor pode partir de `docs/ARQUITETURA.md`.
-5. **Empacotamento:** não existe. Escolher electron-builder ou Forge; no macOS, incluir
-   `NSMicrophoneUsageDescription` no `Info.plist` e assinar/notarizar.
-6. **Decisões pequenas que pedem o cliente:** Linux sem keyring (recusar, como hoje, ou aceitar com
-   aviso); botão "Reler" quando o TTS falha (hoje: Pausar → Retomar relê); esconder "Preencher com
-   exemplo" fora da simulação; desabilitar "Registrar resposta" depois de registrar.
+5. **Empacotamento (macOS):** feito em 2026-09-07 com electron-builder (`app/electron-builder.yml`) e a
+   esteira `.github/workflows/empacotar-mac.yml`, que compila num macOS da GitHub e publica DMG e ZIP
+   (app universal) na página de Releases; instruções em §4. A esteira rodou com sucesso (execução 2,
+   ~3 min; a execução 1 falhou porque o segredo `CSC_LINK` ausente chegava como texto vazio e o
+   electron-builder tentava importá-lo — corrigido) e publicou a Release `v0.1.0-b2`:
+   https://github.com/tonico-lgtm/Claude-/releases/tag/v0.1.0-b2 (DMG e ZIP, ~187 MB cada). O ZIP foi
+   baixado e inspecionado daqui: binário universal (`cafebabe`), `_CodeSignature` presente,
+   `NSMicrophoneUsageDescription`, `CFBundleIdentifier` e `LSMinimumSystemVersion 12.0` no `Info.plist`,
+   `app.asar` e `icon.icns` em `Resources`, nenhum `chaves.local.json`. O que falta: (a) abrir o `.app` num Mac real
+   (só o pacote Linux foi exercitado, sob Xvfb); (b) certificado "Developer ID" e notarização — a esteira
+   já aceita os segredos `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` e
+   `APPLE_TEAM_ID`, caminho ainda não exercitado; sem eles o app sai com assinatura ad hoc e o macOS pede
+   "Abrir mesmo assim" na primeira abertura; (c) Windows e Linux, se algum dia forem pedidos.
+6. **Decisões pequenas que pedem o cliente:** botão "Reler" quando o TTS falha (hoje: Pausar →
+   Retomar relê); esconder "Preencher com exemplo" fora da simulação; desabilitar "Registrar
+   resposta" depois de registrar.
 7. **Consolidar duplicatas:** o mapa texto→pergunta da simulação está em `electron/main.ts` e em
    `src/platform/navegador.ts`; o lugar natural é `simulacao.ts`.
 
@@ -158,12 +186,16 @@ npm run dev            # http://localhost:5273
 # 5. Rodar o app de verdade, em simulação (sem chave, sem rede)
 ENTREVISTA_TWIN_SIMULACAO=1 npm start
 
-# 6. Rodar o app de verdade contra as APIs (chaves digitadas na tela)
+# 6. Rodar o app de verdade contra as APIs: as chaves vêm de um arquivo local, nunca da tela.
+#    Copie o exemplo, preencha as duas chaves e rode. O arquivo está no .gitignore.
+cp chaves.local.exemplo.json chaves.local.json   # edite: { "claude": "sk-ant-…", "grok": "xai-…" }
 npm start
 
 # Variáveis úteis
+#   ENTREVISTA_TWIN_CLAUDE_KEY       chave do Claude (tem precedência sobre o arquivo)
+#   ENTREVISTA_TWIN_GROK_KEY         chave do Grok (idem)
 #   ENTREVISTA_TWIN_DEV=1            carrega o renderer do servidor do Vite (rode `npm run dev` antes)
-#   ENTREVISTA_TWIN_SIMULACAO=1      voz e condução simuladas
+#   ENTREVISTA_TWIN_SIMULACAO=1      voz e condução simuladas (sem chave, sem rede)
 #   ENTREVISTA_TWIN_XAI_BASE_URL     base URL do Grok (padrão https://api.x.ai/v1)
 ```
 
@@ -173,6 +205,37 @@ npm start
 > `project/Entrevista Twin.dc.html` (é a especificação visual — não copie a estrutura interna
 > dele, só o resultado visual). Continue a partir da seção 3 do HANDOFF. As decisões da seção 2
 > estão travadas: não as reabra sem me perguntar.
+
+---
+
+### Instalar o app no Mac (para o cliente, sem terminal)
+
+1. No GitHub, abrir **Actions › "Empacotar para macOS" › "Run workflow"** (branch `main`) e aguardar
+   uns dez minutos. Só quem tem acesso de escrita ao repositório consegue acionar.
+2. Abrir a página de **Releases** do repositório e baixar o arquivo `Entrevista-Twin-<versão>-universal.dmg`.
+3. Abrir o DMG e arrastar o **Entrevista Twin** para a pasta Aplicativos.
+4. Na primeira abertura, se o macOS disser que não pôde verificar o app, ir a **Ajustes do Sistema ›
+   Privacidade e Segurança** e clicar em **"Abrir mesmo assim"** (uma vez só). Isso desaparece quando
+   houver certificado "Developer ID" e notarização (ver §3, item 5).
+5. Se a tela disser "sem chaves", clicar em **"Abrir o arquivo de chaves"**: o app cria
+   `~/Library/Application Support/Entrevista Twin/chaves.local.json` com as duas chaves vazias e o abre no
+   editor de texto. Colar cada chave entre as aspas, salvar e clicar em **"Verificar de novo"**. O app
+   tolera as aspas tipográficas que o TextEdit costuma inserir.
+6. Na primeira gravação, o macOS pede permissão de microfone.
+
+Alternativa num Mac com Node instalado: `cd app && npm install && npm run empacotar:mac` gera o DMG em
+`app/release/`.
+
+**Chaves embutidas no pacote** (decisão do cliente em 2026-09-07: "pode salvar dentro do app"). A esteira
+grava `Contents/Resources/chaves.local.json` a partir dos segredos `ENTREVISTA_TWIN_CLAUDE_KEY` e
+`ENTREVISTA_TWIN_GROK_KEY` (Settings › Secrets and variables › Actions); cada chave presente entra, a
+ausente fica vazia. Só faz isso se o repositório for **privado** (Settings › General › Danger Zone ›
+Change visibility): num repositório público a Release é baixável por qualquer pessoa e a chave iria junto.
+A assinatura ad hoc é feita depois da cópia, então o selo cobre o arquivo. Dentro do app, a ordem de
+leitura é `<userData>/chaves.local.json` e depois `Contents/Resources/chaves.local.json`: um arquivo na
+pasta de dados do usuário sobrepõe o embutido. Em repositório privado, cada execução da esteira consome
+cerca de 30 minutos da cota mensal gratuita do Actions (runner macOS conta 10×); por isso o artefato do
+workflow só é guardado quando não se publica Release.
 
 ---
 
@@ -199,6 +262,10 @@ app/                                   a implementação
   src/audio/                           gravador, reprodutor
   src/hooks/useSessao.ts               controlador da sessão
   src/screens/                         Setup, Sessao, FimDeSessao, contratos
+  src/shared/chaves.ts                 provisionamento das chaves (puro, + testes)
+  electron-builder.yml                 empacotamento (macOS universal: DMG e ZIP; Linux dir para validar)
+  build/icon.png, build/entitlements.mac.plist, build/extra/   ícone, entitlements (microfone), chaves injetadas pela esteira
+.github/workflows/empacotar-mac.yml    esteira: compila num macOS da GitHub e publica a Release
   src/components/                      componentes e ícones
   src/styles/global.css                tokens, fontes empacotadas, primitivos
 ```
@@ -217,5 +284,7 @@ app/                                   a implementação
 - **Sem revisão de código independente.** O código saiu de agentes paralelos escrevendo contra os
   contratos de `ARQUITETURA.md`; integrou sem erro de tipo e passou nos testes e nas duas fumaças
   completas, mas ninguém o leu de ponta a ponta com olhar adversarial.
-- **Só Linux foi exercitado** (sob Xvfb). macOS e Windows dependem do keychain e do microfone reais.
-- **Sem empacotamento.** `npm start` roda o Electron de desenvolvimento; não há instalador.
+- **Só Linux foi exercitado** (sob Xvfb). macOS e Windows dependem do microfone real.
+- **O `.app` ainda não foi aberto num Mac real.** A configuração do empacotamento foi validada com o
+  pacote Linux (`npm run empacotar:linux`, app sobe do `app.asar` sob Xvfb); o `.app` sai da esteira num
+  macOS da GitHub. Sem certificado da Apple, a assinatura é ad hoc: o Gatekeeper pede confirmação uma vez.

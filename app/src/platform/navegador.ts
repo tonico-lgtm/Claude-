@@ -19,7 +19,7 @@ import {
 import {
   CONFIGURACAO_PADRAO,
   FRASE_DE_AMOSTRA,
-  chaveTemFormatoValido,
+  NOME_ARQUIVO_CHAVES_LOCAL,
 } from '../shared/tipos';
 import type {
   AudioFalado,
@@ -60,14 +60,6 @@ function gravar(chave: string, valor: string): void {
   }
 }
 
-function remover(chave: string): void {
-  try {
-    window.localStorage.removeItem(PREFIXO + chave);
-  } catch {
-    // Sem armazenamento não há o que remover.
-  }
-}
-
 function lerJson(chave: string): unknown {
   const texto = ler(chave);
   if (texto === null) return undefined;
@@ -79,23 +71,14 @@ function lerJson(chave: string): unknown {
 }
 
 // ---------------------------------------------------------------------------
-// Chaves (só a marca de guardada; o texto da chave não fica em lugar nenhum)
+// Chaves — no navegador não há chave nenhuma: tudo é simulado, e o app se
+// comporta como se as duas estivessem provisionadas.
 // ---------------------------------------------------------------------------
 
-const chaveDeMotor = (motor: Motor): string => `chave:${motor}`;
-
-function estadoDasChaves(): EstadoChaves {
-  return {
-    claude: ler(chaveDeMotor('claude')) === 'guardada' ? 'guardada' : 'ausente',
-    grok: ler(chaveDeMotor('grok')) === 'guardada' ? 'guardada' : 'ausente',
-  };
-}
+const CHAVES_SIMULADAS: EstadoChaves = { claude: 'presente', grok: 'presente' };
 
 function validarChave(motor: Motor): ResultadoValidacaoChave {
-  if (ler(chaveDeMotor(motor)) !== 'guardada') {
-    return { motor, ok: false, mensagem: 'Nenhuma chave guardada.' };
-  }
-  return { motor, ok: true, mensagem: 'Formato válido (ambiente de desenvolvimento, sem chamada real).' };
+  return { motor, ok: true, mensagem: 'Simulação no navegador: chave não verificada na API.' };
 }
 
 // ---------------------------------------------------------------------------
@@ -199,18 +182,10 @@ const condutor = condutorSimulado();
 export function plataformaNavegador(): Plataforma {
   return {
     chaves: {
-      estado: async () => estadoDasChaves(),
-      guardar: async (motor, chave) => {
-        if (!chaveTemFormatoValido(motor, chave)) {
-          const falha: ErroApp = { codigo: 'chave-invalida', mensagem: `A chave do ${motor} não tem o formato esperado.` };
-          throw falha;
-        }
-        gravar(chaveDeMotor(motor), 'guardada');
-        return estadoDasChaves();
-      },
-      remover: async (motor) => {
-        remover(chaveDeMotor(motor));
-        return estadoDasChaves();
+      estado: async () => CHAVES_SIMULADAS,
+      prepararArquivo: async () => {
+        console.info('[navegador] não há arquivo de chaves fora do Electron');
+        return NOME_ARQUIVO_CHAVES_LOCAL;
       },
       validar: async (motores) => motores.map((m) => validarChave(m)),
     },
@@ -252,7 +227,13 @@ export function plataformaNavegador(): Plataforma {
     },
 
     sistema: {
-      info: async () => ({ plataforma: 'navegador', simulada: true, versaoApp: 'dev', so: navigator.platform }),
+      info: async () => ({
+        plataforma: 'navegador',
+        simulada: true,
+        versaoApp: 'dev',
+        so: navigator.platform,
+        arquivoDeChaves: `${NOME_ARQUIVO_CHAVES_LOCAL} (não se aplica no navegador)`,
+      }),
       abrirPasta: async (pasta) => {
         console.info(`[navegador] abrir pasta: ${pasta}`);
       },

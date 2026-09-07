@@ -1,5 +1,6 @@
 {
   "name": "entrevista-twin",
+  "productName": "Entrevista Twin",
   "version": "0.1.0",
   "private": true,
   "description": "Conduz a entrevista de identidade do twin e grava a transcrição bruta na máquina do cliente.",
@@ -12,7 +13,10 @@
     "start": "npm run build && electron .",
     "typecheck": "tsc --noEmit && tsc -p electron/tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "empacotar:mac": "npm run build && electron-builder --mac",
+    "empacotar:mac:dir": "npm run build && electron-builder --mac dir",
+    "empacotar:linux": "npm run build && electron-builder --linux dir"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
@@ -27,8 +31,18 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.2.1",
+    "electron-builder": "^26.15.3",
     "typescript": "^5.7.2",
     "vite": "^6.0.3",
     "vitest": "^2.1.8"
+  },
+  "author": {
+    "name": "Antonio Carlos Monteiro da Silva Filho",
+    "email": "tonico@monteirodasilva.com.br"
+  },
+  "homepage": "https://github.com/tonico-lgtm/Claude-",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tonico-lgtm/Claude-.git"
   }
 }

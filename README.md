@@ -1,3 +1,12 @@
+# Entrevista Twin
+
+App de desktop (Electron) que conduz a entrevista de identidade do twin, por voz ou por escrita, e grava
+a transcrição na máquina do cliente. O código está em `app/`; o estado do projeto, as decisões e as
+instruções de instalação no Mac estão em [`docs/HANDOFF.md`](docs/HANDOFF.md) (§4). O `.app` para
+macOS é gerado pela esteira **Actions › "Empacotar para macOS"** e publicado em **Releases**.
+
+---
+
 # CODING AGENTS: READ THIS FIRST
 
 This is a **handoff bundle** from Claude Design (claude.ai/design).

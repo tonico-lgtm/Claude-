@@ -4,3 +4,9 @@ dist/
 *.log
 app/dist/
 app/node_modules/
+
+# Chaves de API provisionadas localmente (nunca versionadas)
+chaves.local.json
+
+# Saída do empacotamento
+app/release/

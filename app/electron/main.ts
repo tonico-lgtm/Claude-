@@ -21,7 +21,6 @@ import {
   dialog,
   ipcMain,
   Menu,
-  safeStorage,
   session,
   shell,
   systemPreferences,
@@ -36,11 +35,20 @@ import { criarCondutor, validarChaveClaude } from '../src/services/claude';
 import { criarVozGrok, validarChaveGrok } from '../src/services/grok';
 import { condutorSimulado, vozSimulada } from '../src/services/simulacao';
 import {
+  MOTORES,
+  estadoDasChaves,
+  interpretarTextoDeChaves,
+  provisionarChaves,
+  valoresDoArquivoDeChaves,
+} from '../src/shared/chaves';
+import type { ChavesProvisionadas, FonteDeChaves } from '../src/shared/chaves';
+import {
   CANAIS,
   CONFIGURACAO_PADRAO,
   FRASE_DE_AMOSTRA,
+  NOME_ARQUIVO_CHAVES_LOCAL,
   NOME_ARQUIVO_PROGRESSO,
-  chaveTemFormatoValido,
+  VARIAVEL_DE_CHAVE,
   paraErroApp,
 } from '../src/shared/tipos';
 import type {
@@ -68,11 +76,9 @@ const SIMULACAO = process.env['ENTREVISTA_TWIN_SIMULACAO'] === '1';
 const XAI_BASE_URL = process.env['ENTREVISTA_TWIN_XAI_BASE_URL'];
 const URL_DEV = 'http://localhost:5273';
 
-const NOME_ARQUIVO_CHAVES = 'chaves.json';
 const NOME_ARQUIVO_CONFIG = 'config.json';
 const NOME_PASTA_PADRAO = 'Entrevista Twin';
 
-const MOTORES: readonly Motor[] = ['claude', 'grok'];
 const VOZES_VALIDAS: readonly VozId[] = ['helios', 'leo'];
 const MODOS_VALIDOS: readonly Modo[] = ['voz', 'escrita'];
 
@@ -243,74 +249,86 @@ async function gravarJson(caminho: string, valor: unknown): Promise<void> {
 const caminhoEmUserData = (nome: string): string => path.join(app.getPath('userData'), nome);
 
 // ---------------------------------------------------------------------------
-// Chaves (safeStorage → base64 em <userData>/chaves.json)
+// Chaves provisionadas (ambiente → chaves.local.json ao lado do package.json
+// → chaves.local.json em userData). Nada é gravado: as fontes são relidas a
+// cada uso e a chave em claro só existe dentro do handler que a pediu.
 // ---------------------------------------------------------------------------
 
-type ChavesCifradas = Partial<Record<Motor, string>>;
-
-async function lerChavesCifradas(): Promise<ChavesCifradas> {
-  const json = await lerJson(caminhoEmUserData(NOME_ARQUIVO_CHAVES));
-  if (typeof json !== 'object' || json === null) return {};
-  const o = json as Record<string, unknown>;
-  const resultado: { claude?: string; grok?: string } = {};
-  for (const motor of MOTORES) {
-    const valor = o[motor];
-    if (typeof valor === 'string' && valor !== '') resultado[motor] = valor;
+/**
+ * Onde o app procura o arquivo local; o primeiro é o que a tela mostra.
+ * Em desenvolvimento (`npm start`), ao lado do `package.json`. Empacotado, na
+ * pasta de dados do usuário (macOS: `~/Library/Application Support/Entrevista Twin`)
+ * e, como alternativa, dentro do pacote (`Contents/Resources`), onde a esteira
+ * de empacotamento pode ter injetado as chaves.
+ */
+function caminhosDoArquivoDeChaves(): readonly string[] {
+  if (app.isPackaged) {
+    return [caminhoEmUserData(NOME_ARQUIVO_CHAVES_LOCAL), path.join(process.resourcesPath, NOME_ARQUIVO_CHAVES_LOCAL)];
   }
-  return resultado;
+  return [path.join(app.getAppPath(), NOME_ARQUIVO_CHAVES_LOCAL), caminhoEmUserData(NOME_ARQUIVO_CHAVES_LOCAL)];
 }
 
-function estadoDasChaves(cifradas: ChavesCifradas): EstadoChaves {
-  return {
-    claude: cifradas.claude ? 'guardada' : 'ausente',
-    grok: cifradas.grok ? 'guardada' : 'ausente',
-  };
-}
-
-function exigirKeychain(): void {
-  if (!safeStorage.isEncryptionAvailable()) {
-    throw erro(
-      'desconhecido',
-      'O keychain do sistema não está disponível; não é possível guardar nem ler chaves com segurança nesta máquina.',
-    );
+/** Lê um arquivo de chaves com tolerância a BOM e aspas tipográficas; ausente → fonte vazia. */
+async function fonteDoArquivoDeChaves(caminho: string): Promise<FonteDeChaves> {
+  let texto: string;
+  try {
+    texto = await fs.readFile(caminho, 'utf-8');
+  } catch (e) {
+    if (ehErroDeArquivoInexistente(e)) return { nome: caminho, valores: {} };
+    throw erroDeDisco(e, `Não foi possível ler ${path.basename(caminho)}.`);
   }
+  if (texto.trim() === '') return { nome: caminho, valores: {} };
+  const json = interpretarTextoDeChaves(texto);
+  if (json === null) return { nome: caminho, valores: {}, ilegivel: true };
+  return { nome: caminho, valores: valoresDoArquivoDeChaves(json) };
 }
+
+async function fontesDeChaves(): Promise<readonly FonteDeChaves[]> {
+  const ambiente: Partial<Record<Motor, unknown>> = {};
+  for (const motor of MOTORES) ambiente[motor] = process.env[VARIAVEL_DE_CHAVE[motor]];
+  const fontes: FonteDeChaves[] = [{ nome: 'variáveis de ambiente', valores: ambiente }];
+  for (const caminho of caminhosDoArquivoDeChaves()) fontes.push(await fonteDoArquivoDeChaves(caminho));
+  return fontes;
+}
+
+const MODELO_DO_ARQUIVO_DE_CHAVES = '{\n  "claude": "",\n  "grok": ""\n}\n';
+
+/**
+ * Cria `chaves.local.json` no lugar que a tela mostra (se ainda não existir) e
+ * o abre no editor de texto do sistema; sem editor associado, revela o arquivo
+ * na pasta. Pensado para quem não usa terminal.
+ */
+async function prepararArquivoDeChaves(): Promise<string> {
+  const caminho = caminhosDoArquivoDeChaves()[0] ?? caminhoEmUserData(NOME_ARQUIVO_CHAVES_LOCAL);
+  try {
+    await fs.mkdir(path.dirname(caminho), { recursive: true });
+    await fs.writeFile(caminho, MODELO_DO_ARQUIVO_DE_CHAVES, { encoding: 'utf-8', flag: 'wx', mode: 0o600 });
+  } catch (e) {
+    if (!(typeof e === 'object' && e !== null && (e as { code?: string }).code === 'EEXIST')) {
+      throw erroDeDisco(e, `Não foi possível criar ${NOME_ARQUIVO_CHAVES_LOCAL}.`);
+    }
+  }
+  const falha = await shell.openPath(caminho);
+  if (falha !== '') shell.showItemInFolder(caminho);
+  return caminho;
+}
+
+async function chavesProvisionadas(): Promise<ChavesProvisionadas> {
+  return provisionarChaves(await fontesDeChaves());
+}
+
+async function estadoAtualDasChaves(): Promise<EstadoChaves> {
+  // Em simulação não há rede nem chave: a tela não deve cobrar nenhuma.
+  if (SIMULACAO) return { claude: 'presente', grok: 'presente' };
+  return estadoDasChaves(await chavesProvisionadas());
+}
+
+const SEM_CHAVE_GROK = `Nenhuma chave do Grok provisionada; coloque-a em ${NOME_ARQUIVO_CHAVES_LOCAL} para usar o modo voz.`;
+const SEM_CHAVE_CLAUDE = `Nenhuma chave do Claude provisionada; coloque-a em ${NOME_ARQUIVO_CHAVES_LOCAL} para conduzir a entrevista.`;
 
 /** A chave em claro só existe no retorno desta função, dentro do handler que a chamou. */
 async function chaveEmClaro(motor: Motor): Promise<string | null> {
-  const cifradas = await lerChavesCifradas();
-  const cifrada = cifradas[motor];
-  if (!cifrada) return null;
-  exigirKeychain();
-  try {
-    return safeStorage.decryptString(Buffer.from(cifrada, 'base64'));
-  } catch (e) {
-    throw erro(
-      'desconhecido',
-      `Não foi possível descriptografar a chave do ${motor}; guarde-a de novo.`,
-      e instanceof Error ? e.message : undefined,
-    );
-  }
-}
-
-async function guardarChave(motor: Motor, chave: string): Promise<EstadoChaves> {
-  const limpa = chave.trim();
-  if (!chaveTemFormatoValido(motor, limpa)) {
-    throw erro('chave-invalida', `A chave do ${motor} não tem o formato esperado.`);
-  }
-  exigirKeychain();
-  const cifradas = await lerChavesCifradas();
-  const novas: ChavesCifradas = { ...cifradas, [motor]: safeStorage.encryptString(limpa).toString('base64') };
-  await gravarJson(caminhoEmUserData(NOME_ARQUIVO_CHAVES), novas);
-  return estadoDasChaves(novas);
-}
-
-async function removerChave(motor: Motor): Promise<EstadoChaves> {
-  const cifradas = await lerChavesCifradas();
-  const novas: { claude?: string; grok?: string } = { ...cifradas };
-  delete novas[motor];
-  await gravarJson(caminhoEmUserData(NOME_ARQUIVO_CHAVES), novas);
-  return estadoDasChaves(novas);
+  return (await chavesProvisionadas())[motor].chave;
 }
 
 async function validarChave(motor: Motor): Promise<ResultadoValidacaoChave> {
@@ -318,11 +336,14 @@ async function validarChave(motor: Motor): Promise<ResultadoValidacaoChave> {
     // Simulação é sem rede por definição: não se confirma nada na API.
     return { motor, ok: true, mensagem: 'Simulação: chave não verificada na API.' };
   }
-  const chave = await chaveEmClaro(motor);
-  if (chave === null) return { motor, ok: false, mensagem: 'Nenhuma chave guardada.' };
+  const provisionada = (await chavesProvisionadas())[motor];
+  if (provisionada.situacao === 'invalida') {
+    return { motor, ok: false, mensagem: `A chave em ${provisionada.fonte ?? 'fonte desconhecida'} não tem o formato esperado.` };
+  }
+  if (provisionada.chave === null) return { motor, ok: false, mensagem: 'Nenhuma chave provisionada.' };
   return motor === 'claude'
-    ? validarChaveClaude(chave)
-    : validarChaveGrok(chave, XAI_BASE_URL ? { baseUrl: XAI_BASE_URL } : {});
+    ? validarChaveClaude(provisionada.chave)
+    : validarChaveGrok(provisionada.chave, XAI_BASE_URL ? { baseUrl: XAI_BASE_URL } : {});
 }
 
 // ---------------------------------------------------------------------------
@@ -432,21 +453,21 @@ async function falar(texto: string, voz: VozId): Promise<AudioFalado> {
     return vozDeSimulacao.falar(texto, voz);
   }
   const chave = await chaveEmClaro('grok');
-  if (chave === null) throw erro('chave-ausente', 'Guarde a chave do Grok para usar o modo voz.');
+  if (chave === null) throw erro('chave-ausente', SEM_CHAVE_GROK);
   return criarVozGrok({ chave, ...(XAI_BASE_URL ? { baseUrl: XAI_BASE_URL } : {}) }).falar(texto, voz);
 }
 
 async function transcrever(audio: ArrayBuffer, mime: string): Promise<Transcrito> {
   if (SIMULACAO) return vozDeSimulacao.transcrever(audio, mime);
   const chave = await chaveEmClaro('grok');
-  if (chave === null) throw erro('chave-ausente', 'Guarde a chave do Grok para usar o modo voz.');
+  if (chave === null) throw erro('chave-ausente', SEM_CHAVE_GROK);
   return criarVozGrok({ chave, ...(XAI_BASE_URL ? { baseUrl: XAI_BASE_URL } : {}) }).transcrever(audio, mime);
 }
 
 async function decidir(entrada: EntradaConducao): Promise<DecisaoConducao> {
   if (SIMULACAO) return condutorDeSimulacao.decidir(entrada);
   const chave = await chaveEmClaro('claude');
-  if (chave === null) throw erro('chave-ausente', 'Guarde a chave do Claude para conduzir a entrevista.');
+  if (chave === null) throw erro('chave-ausente', SEM_CHAVE_CLAUDE);
   return criarCondutor({ chave }).decidir(entrada);
 }
 
@@ -460,6 +481,7 @@ function infoDoSistema(): InfoSistema {
     simulada: SIMULACAO,
     versaoApp: app.getVersion(),
     so: `${process.platform} ${os.release()}`,
+    arquivoDeChaves: caminhosDoArquivoDeChaves()[0] ?? NOME_ARQUIVO_CHAVES_LOCAL,
   };
 }
 
@@ -491,11 +513,8 @@ function registrar(canal: string, handler: Handler): void {
 }
 
 function registrarCanais(): void {
-  registrar(CANAIS.chavesEstado, async () => estadoDasChaves(await lerChavesCifradas()));
-  registrar(CANAIS.chavesGuardar, (motor, chave) =>
-    guardarChave(exigirMotor(motor, 'motor'), exigirString(chave, 'chave')),
-  );
-  registrar(CANAIS.chavesRemover, (motor) => removerChave(exigirMotor(motor, 'motor')));
+  registrar(CANAIS.chavesEstado, () => estadoAtualDasChaves());
+  registrar(CANAIS.chavesPrepararArquivo, () => prepararArquivoDeChaves());
   registrar(CANAIS.chavesValidar, (motores) =>
     Promise.all(exigirListaDeMotores(motores, 'motores').map((m) => validarChave(m))),
   );
