@@ -1,0 +1,39 @@
+/*
+ * App — só o que o roteador precisa: a tela de carga e a de erro fatal.
+ * Cada tela tem o próprio CSS (Setup.css, Sessao.css, FimDeSessao.css).
+ * Prefixo app-.
+ */
+
+.app-carga {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 48px;
+  text-align: center;
+  background: var(--fundo);
+  color: var(--texto);
+}
+
+.app-carga__texto {
+  font-size: 12px;
+  color: var(--texto-3);
+}
+
+.app-carga__titulo {
+  font-size: 26px;
+}
+
+.app-carga__erro {
+  margin: 0;
+  max-width: 520px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--texto-2);
+}
+
+.app-carga__acoes {
+  margin-top: 6px;
+}

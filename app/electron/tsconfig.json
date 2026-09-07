@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": [
+      "ES2022"
+    ],
     "module": "CommonJS",
     "moduleResolution": "node",
     "strict": true,
@@ -12,5 +14,11 @@
     "outDir": "../dist/electron",
     "rootDir": ".."
   },
-  "include": [".", "../src/roteiro", "../src/engine", "../src/shared"]
+  "include": [
+    ".",
+    "../src/roteiro",
+    "../src/engine",
+    "../src/shared",
+    "../src/services"
+  ]
 }

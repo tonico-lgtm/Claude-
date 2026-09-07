@@ -1,0 +1,431 @@
+/*
+ * Direção visual do brief v2 — técnico sóbrio.
+ * Fontes empacotadas (CSP proíbe fontes remotas): IBM Plex Mono na interface,
+ * Spectral nos títulos e nas perguntas.
+ */
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/spectral/300.css';
+@import '@fontsource/spectral/300-italic.css';
+@import '@fontsource/spectral/400.css';
+@import '@fontsource/spectral/400-italic.css';
+@import '@fontsource/spectral/500.css';
+
+:root {
+  --fundo: #16181b;
+  --painel: #1d2024;
+  --campo: #101215;
+  --campo-hover: #131518;
+  --linha: #2c3037;
+  --linha-forte: #33373e;
+  --texto: #e4e2dd;
+  --texto-2: #8d9098;
+  --texto-3: #6e7178;
+  --ambar: oklch(0.74 0.11 65);
+  --ambar-claro: oklch(0.8 0.11 65);
+  --ambar-fraco: oklch(0.74 0.11 65 / 0.12);
+  --azul: oklch(0.74 0.11 215);
+  --azul-fraco: oklch(0.74 0.11 215 / 0.12);
+  --verde: oklch(0.7 0.12 145);
+  --verde-borda: oklch(0.7 0.12 145 / 0.55);
+  --vermelho: oklch(0.62 0.17 25);
+  --vermelho-borda: oklch(0.62 0.17 25 / 0.65);
+  --veu: rgba(11, 12, 14, 0.66);
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --serifa: Spectral, Georgia, serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+a {
+  color: var(--ambar);
+}
+
+a:hover {
+  color: var(--ambar-claro);
+}
+
+::selection {
+  background: oklch(0.74 0.11 65 / 0.3);
+}
+
+::placeholder {
+  color: var(--texto-3);
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 1px solid var(--ambar);
+  outline-offset: 2px;
+}
+
+@keyframes twPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes twBar {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* Primitivos reutilizados pelas três telas                                  */
+/* ------------------------------------------------------------------------ */
+
+/* Quadro do app: ocupa a janela inteira. */
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--fundo);
+  color: var(--texto);
+}
+
+/* Cabeçalho de 48px (setup e fim) ou 46px (sessão). */
+.cabecalho {
+  height: 48px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--linha);
+}
+
+.cabecalho--sessao {
+  height: 46px;
+}
+
+.marca {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.selo {
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border: 1px solid var(--linha-forte);
+  border-radius: 3px;
+  color: var(--texto-2);
+}
+
+.selo--ambar {
+  border-color: var(--ambar);
+  color: var(--ambar);
+  letter-spacing: 0.04em;
+}
+
+.selo--azul {
+  border-color: var(--azul);
+  color: var(--azul);
+}
+
+.selo--verde {
+  border-color: var(--verde);
+  color: var(--verde);
+}
+
+/* Rótulo de seção: 11px, caixa alta, espaçado. */
+.rotulo {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--texto-3);
+}
+
+.rotulo--claro {
+  color: var(--texto-2);
+}
+
+/* Quadradinho colorido que identifica o motor. */
+.marcador {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+  flex: none;
+}
+
+.marcador--ambar {
+  background: var(--ambar);
+}
+
+.marcador--azul {
+  background: var(--azul);
+}
+
+/* Títulos em Spectral. */
+.titulo {
+  margin: 0;
+  font-family: var(--serifa);
+  font-weight: 300;
+  line-height: 1.15;
+  color: var(--texto);
+}
+
+/* Botões. */
+.botao {
+  height: 36px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid var(--linha-forte);
+  border-radius: 3px;
+  font-size: 12px;
+  color: var(--texto);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.botao:hover:not(:disabled) {
+  border-color: var(--texto-2);
+  background: var(--painel);
+}
+
+.botao:disabled {
+  opacity: 0.4;
+}
+
+.botao--ambar {
+  border-color: var(--ambar);
+  color: var(--ambar);
+}
+
+.botao--ambar:hover:not(:disabled) {
+  border-color: var(--ambar);
+  background: var(--ambar-fraco);
+}
+
+.botao--azul {
+  border-color: var(--azul);
+  color: var(--azul);
+}
+
+.botao--azul:hover:not(:disabled) {
+  border-color: var(--azul);
+  background: var(--azul-fraco);
+}
+
+.botao--cheio {
+  height: 46px;
+  width: 100%;
+  gap: 10px;
+  background: var(--ambar);
+  color: var(--fundo);
+  border: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.botao--cheio:hover:not(:disabled) {
+  background: var(--ambar-claro);
+  border-color: transparent;
+}
+
+.botao--discreto {
+  border: 0;
+  padding: 0 10px;
+  color: var(--texto-2);
+}
+
+.botao--discreto:hover:not(:disabled) {
+  background: transparent;
+  color: var(--texto);
+}
+
+.botao--baixo {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  color: var(--texto-2);
+}
+
+.botao--baixo:hover:not(:disabled) {
+  color: var(--texto);
+}
+
+/* Card de painel. */
+.card {
+  background: var(--painel);
+  border: 1px solid var(--linha);
+  border-radius: 3px;
+}
+
+/* Campo de texto com moldura. */
+.campo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--campo);
+  border: 1px solid var(--linha);
+  border-radius: 3px;
+}
+
+.campo input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  font-size: 13px;
+  color: var(--texto);
+  letter-spacing: 0.02em;
+}
+
+/* Dica sob um campo. */
+.dica {
+  font-size: 11px;
+  color: var(--texto-3);
+  line-height: 1.5;
+}
+
+.dica--ok {
+  color: var(--verde);
+}
+
+.dica--erro {
+  color: var(--vermelho);
+}
+
+/* Números tabulares. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Ponto de estado (cabeçalho do setup). */
+.ponto {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--texto-3);
+  display: inline-block;
+}
+
+.ponto--verde {
+  border-color: var(--verde);
+  background: var(--verde);
+}
+
+/* Véu e diálogo de confirmação. */
+.veu {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--veu);
+  z-index: 5;
+}
+
+.dialogo {
+  width: 440px;
+  background: var(--painel);
+  border: 1px solid var(--linha-forte);
+  border-radius: 4px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dialogo__titulo {
+  font-family: var(--serifa);
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.dialogo__texto {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--texto-2);
+}
+
+.dialogo__acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* Faixa de erro discreta (sem gradiente, sem barra lateral). */
+.aviso {
+  border: 1px solid var(--vermelho-borda);
+  background: var(--campo);
+  border-radius: 3px;
+  padding: 10px 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--texto);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.aviso__texto {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Utilitários mínimos. */
+.espaco {
+  flex: 1;
+}
+
+.oculto {
+  display: none !important;
+}
