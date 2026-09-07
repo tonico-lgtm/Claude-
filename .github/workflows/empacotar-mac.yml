@@ -41,22 +41,20 @@ jobs:
     defaults:
       run:
         working-directory: app
+    # Os segredos de assinatura NÃO entram no ambiente do job: um segredo ausente vira
+    # string vazia, e o electron-builder trata CSC_LINK vazio como certificado a importar.
+    # Eles só são expostos nos passos que os usam.
     env:
-      CSC_LINK: ${{ secrets.CSC_LINK }}
-      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       CHAVE_CLAUDE: ${{ secrets.ENTREVISTA_TWIN_CLAUDE_KEY }}
       CHAVE_GROK: ${{ secrets.ENTREVISTA_TWIN_GROK_KEY }}
       REPOSITORIO_PRIVADO: ${{ github.event.repository.private }}
 
     steps:
       - name: Obter o código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -91,6 +89,11 @@ jobs:
 
       - name: Modo de assinatura
         id: assinatura
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           if [ -n "$CSC_LINK" ]; then echo "modo=certificado" >> "$GITHUB_OUTPUT"; else echo "modo=adhoc" >> "$GITHUB_OUTPUT"; fi
           if [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then echo "notarizar=true" >> "$GITHUB_OUTPUT"; else echo "notarizar=false" >> "$GITHUB_OUTPUT"; fi
@@ -100,7 +103,7 @@ jobs:
         if: steps.assinatura.outputs.modo == 'adhoc'
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-        run: npm run build && npx electron-builder --mac dir --universal
+        run: npm run build && npx electron-builder --mac dir --universal --publish never
 
       - name: Assinar ad hoc
         if: steps.assinatura.outputs.modo == 'adhoc'
@@ -113,12 +116,18 @@ jobs:
         if: steps.assinatura.outputs.modo == 'adhoc'
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-        run: npx electron-builder --mac dmg zip --universal --prepackaged "release/mac-universal/Entrevista Twin.app"
+        run: npx electron-builder --mac dmg zip --universal --publish never --prepackaged "release/mac-universal/Entrevista Twin.app"
 
       # --- Com certificado: o electron-builder assina (e notariza, se houver credenciais). ---
       - name: Empacotar, assinar e notarizar (com certificado)
         if: steps.assinatura.outputs.modo == 'certificado'
-        run: npm run build && npx electron-builder --mac --universal --config.mac.notarize=${{ steps.assinatura.outputs.notarizar }}
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npm run build && npx electron-builder --mac --universal --publish never --config.mac.notarize=${{ steps.assinatura.outputs.notarizar }}
 
       - name: Listar o resultado
         run: ls -la release/*.dmg release/*.zip
