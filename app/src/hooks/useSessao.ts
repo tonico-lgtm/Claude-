@@ -30,7 +30,7 @@ import {
 } from '../engine/transcricao';
 import { FECHAMENTO, perguntasDaSessao, sessaoPorNumero } from '../roteiro/roteiro';
 import type { PropsSessao, ResultadoSessao } from '../screens/contratos';
-import { paraErroApp } from '../shared/tipos';
+import { instanteLocalIso, paraErroApp } from '../shared/tipos';
 import type {
   CodigoErro,
   EntradaConducao,
@@ -73,7 +73,7 @@ interface Ficha {
 
 const MENSAGEM_SEM_PASTA = 'Nenhuma pasta de destino definida; a transcrição não pode ser gravada.';
 
-const agoraIso = (): string => new Date().toISOString();
+const agoraIso = (): string => instanteLocalIso(new Date());
 
 /** União preservando a ordem: os antigos primeiro. */
 function unir(antigos: readonly string[], novos: readonly string[]): readonly string[] {
@@ -113,6 +113,8 @@ export function useSessao(props: PropsSessao): ControleSessao {
   const propsRef = useRef(props);
   propsRef.current = props;
   const arquivoRef = useRef('');
+  /** Houve ao menos uma leitura ou transcrição por voz nesta execução. */
+  const usouVoz = useRef(false);
   const progressoRef = useRef<Progresso>(props.progresso);
   const iniciado = useRef(false);
   const desmonteAgendado = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -187,6 +189,7 @@ export function useSessao(props: PropsSessao): ControleSessao {
       const ficha: Ficha = { cancelada: false, parar: () => undefined };
       reproducao.current = ficha;
       try {
+        usouVoz.current = true;
         const audio = await propsRef.current.plataforma.voz.falar(texto, estadoRef.current.voz);
         if (ficha.cancelada) return;
         const r = tocar(audio.audio, audio.mime);
@@ -234,6 +237,7 @@ export function useSessao(props: PropsSessao): ControleSessao {
       despacharRef.current({ tipo: 'capturaConcluida' });
       // A ficha continua registrada durante a transcrição: navegar ou pausar
       // nesse intervalo descarta o texto que ainda vai chegar.
+      usouVoz.current = true;
       const transcrito = await propsRef.current.plataforma.voz.transcrever(resultado.audio, resultado.mime);
       if (ficha.cancelada) return;
       captura.current = null;
@@ -357,6 +361,7 @@ export function useSessao(props: PropsSessao): ControleSessao {
         blocosCobertos,
         blocoAtual: blocoAtualId,
         falas: estadoFinal.linhas.length,
+        usouVoz: usouVoz.current,
         progresso: progressoRef.current,
       };
       propsRef.current.aoEncerrar(resultado);
@@ -426,7 +431,7 @@ export function useSessao(props: PropsSessao): ControleSessao {
       iniciado.current = true;
       const { sessao, retomarDoBlocoId, progresso, config, plataforma } = propsRef.current;
       const data = new Date();
-      const instante = data.toISOString();
+      const instante = instanteLocalIso(data);
       const gravada = progresso.sessoes[sessao];
       const retomando = retomarDoBlocoId !== null && gravada.estado === 'incompleta';
       const arquivo = retomando ? gravada.arquivo : nomeDoArquivoDaSessao(sessao, data);

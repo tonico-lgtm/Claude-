@@ -10,10 +10,10 @@ Data do pacote: 2026-09-07 (substitui o de 2026-09-06).
 ## 1. Estado atual, sem maquiagem
 
 A implementação da etapa 1 está **escrita por inteiro e verificada por tipo, por teste
-e por um teste de fumaça no Electron real em modo simulação**. Não foi executada contra
-as APIs reais do Claude nem do Grok, não foi testada com microfone real e **não passou
-por revisão de código independente** (a revisão adversarial planejada foi pulada por
-decisão do cliente em 2026-09-07).
+e por dois testes de fumaça completos em modo simulação** (o renderer no Chromium e o
+Electron real sob Xvfb). Não foi executada contra as APIs reais do Claude nem do Grok,
+não foi testada com microfone real e **não passou por revisão de código independente**
+(a revisão adversarial planejada foi pulada por decisão do cliente em 2026-09-07).
 
 | Arquivo | Estado |
 |---|---|
@@ -35,7 +35,7 @@ decisão do cliente em 2026-09-07).
 ### O que foi verificado
 
 - `npm run typecheck` limpo nos dois projetos (renderer e Electron).
-- `npm test`: 120 testes passando (motor, transcrição, progresso, serviços, simulação).
+- `npm test`: 127 testes passando (motor, transcrição, progresso, serviços, simulação, tipos).
 - `npm run build`: renderer e main emitidos em `dist/`.
 - **Fumaça no Electron real** (Linux, Xvfb, `ENTREVISTA_TWIN_SIMULACAO=1`, Playwright): janela abre;
   `window.entrevistaTwin` expõe exatamente os oito grupos do contrato; `require`, `process` e
@@ -45,18 +45,45 @@ decisão do cliente em 2026-09-07).
   troca para voz com leitura do WAV simulado, "Concluir resposta", volta a escrita, diálogo de
   encerrar, tela de fim incompleta, `sessao-1-quem-e-<data>.md` e `progresso.json` em disco, reabertura
   com "RETOMAR SESSÃO 1", retomada no bloco 2 (o bloco onde parou) e novo encerramento.
-- **Fumaça no navegador** (parcial): setup, validação das chaves, sessão em escrita, transcrição
-  gravada com o formato do §4 de `ARQUITETURA.md`.
+- **Fumaça no navegador** (`npm run dev`, Chromium headless, Playwright, 29 capturas): os doze passos
+  do roteiro, do setup à retomada da sessão 2 — validação das chaves, amostra de voz, modo escrita com
+  aprofundamento automático e forçado, navegação, pausa, múltipla escolha, troca para voz com leitura,
+  captura, "Concluir resposta", transcrição e aprofundamento por voz, encerramento com despedida, emenda
+  da sessão 2, encerramento antecipado, reabertura com "RETOMAR SESSÃO 2" e retomada no bloco certo.
+  Markdown e `progresso.json` conferidos contra os §4 e §5 de `ARQUITETURA.md`.
+
+### O que a fumaça encontrou e foi corrigido na própria sessão
+
+- A CSP de desenvolvimento não era aplicada: o plugin do `vite.config.ts` trocava a primeira
+  ocorrência de `connect-src 'none'`, que estava no comentário do `index.html`, e o WebSocket do
+  HMR ficava bloqueado. Agora a troca é feita só dentro da meta.
+- A nota de privacidade da tela de fim afirmava "só chamadas de condução" mesmo quando houve troca
+  para voz no meio da sessão. Agora deriva de `usouVoz` no resultado da sessão.
+- Os instantes do cabeçalho, marcador, rodapé e `progresso.json` saíam em UTC ("Z") enquanto o nome
+  do arquivo usa a data local. Agora tudo sai em ISO 8601 com o fuso local (`instanteLocalIso`).
+- A dica "Verifique a permissão do microfone" era anexada a todo erro de microfone, inclusive
+  "Nenhum microfone encontrado". Agora só aparece quando o sistema negou o acesso.
+- A simulação só aprofundava respostas com menos de 120 caracteres e duas respostas fictícias
+  (q01 e q05) ficavam sem aprofundamento na demonstração. Limiar elevado para 160.
 
 ### O que a fumaça mostrou e ainda não foi tratado
 
 - Neste Linux sem keyring, `safeStorage.isEncryptionAvailable()` é `false` e o app **recusa guardar
   as chaves**, com a mensagem explicando. É o comportamento desenhado (decisão 10); em macOS e
   Windows o keychain existe. Se o cliente usar Linux, é preciso decidir o que fazer (ver §3).
-- Registrar duas vezes a mesma resposta (o campo é limpo e "Preencher com exemplo" o reenche) grava
-  duas falas iguais na transcrição. Não é defeito do motor; é comportamento do operador. Avaliar se
-  o botão deve ser desabilitado depois de registrar.
-- Sob Xvfb a janela abriu com 1279×799 em vez de 1280×800. Ambiente, não código.
+- "Registrar resposta" continua habilitado depois de a pergunta já ter resposta: um novo registro
+  grava outra fala do cliente na mesma pergunta. Fiel ao que foi dito, mas permite duplicar por
+  descuido. Avaliar se o botão deve ser desabilitado depois de registrar.
+- A retomada recomeça na primeira pergunta do bloco onde parou (decisão 9), o que relê perguntas
+  daquele bloco já respondidas na execução anterior; a contagem "N de M" usa a união. Se preferir
+  retomar na primeira pergunta ainda não respondida, é ajuste em `criarSessao`.
+- Depois de uma retomada, o `.md` repete os cabeçalhos `## Bloco` e `### Pergunta` do bloco retomado,
+  porque a nova execução não sabe o que já foi titulado. Cosmético; o marcador separa as execuções.
+- `gravador.ts` usa `ScriptProcessorNode`, que o Chromium marca como obsoleto (aviso no console).
+  Escolha deliberada, documentada no arquivo; migrar para `AudioWorklet` quando o empacotamento
+  permitir servir o worklet.
+- Sob Xvfb a janela abriu com 1279×799 em vez de 1280×800. Ambiente, não código (confirmado com
+  uma tela maior).
 
 ---
 
@@ -188,7 +215,7 @@ app/                                   a implementação
 - **Captura de microfone não testada com hardware.** O gravador foi conferido por tipo e por script em
   Node (reamostragem e cabeçalho WAV); a detecção de silêncio pode precisar de calibração.
 - **Sem revisão de código independente.** O código saiu de agentes paralelos escrevendo contra os
-  contratos de `ARQUITETURA.md`; integrou sem erro de tipo e passou nos testes e na fumaça, mas ninguém
-  o leu de ponta a ponta com olhar adversarial.
+  contratos de `ARQUITETURA.md`; integrou sem erro de tipo e passou nos testes e nas duas fumaças
+  completas, mas ninguém o leu de ponta a ponta com olhar adversarial.
 - **Só Linux foi exercitado** (sob Xvfb). macOS e Windows dependem do keychain e do microfone reais.
 - **Sem empacotamento.** `npm start` roda o Electron de desenvolvimento; não há instalador.

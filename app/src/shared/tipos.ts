@@ -325,3 +325,19 @@ export function formatarCarimbo(segundos: number): string {
 export function dataLocalIso(data: Date): string {
   return `${data.getFullYear()}-${dois(data.getMonth() + 1)}-${dois(data.getDate())}`;
 }
+
+/**
+ * ISO 8601 com o fuso local (`2026-09-06T22:30:11.045-03:00`) — vai para o
+ * cabeçalho, o marcador, o rodapé e o `progresso.json`. Quem lê a transcrição
+ * viveu a hora local; e a data bate com a do nome do arquivo.
+ */
+export function instanteLocalIso(data: Date): string {
+  const deslocamento = -data.getTimezoneOffset();
+  const sinal = deslocamento >= 0 ? '+' : '-';
+  const absoluto = Math.abs(deslocamento);
+  const ms = String(data.getMilliseconds()).padStart(3, '0');
+  return (
+    `${dataLocalIso(data)}T${dois(data.getHours())}:${dois(data.getMinutes())}:${dois(data.getSeconds())}.${ms}` +
+    `${sinal}${dois(Math.floor(absoluto / 60))}:${dois(absoluto % 60)}`
+  );
+}

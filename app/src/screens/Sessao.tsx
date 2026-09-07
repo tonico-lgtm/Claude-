@@ -72,7 +72,10 @@ function textoDaDecisao(d: DecisaoConducao): string {
 }
 
 function mensagemDoErro(erro: ErroApp): string {
-  return erro.codigo === 'microfone' ? `${erro.mensagem} ${DICA_MICROFONE}` : erro.mensagem;
+  // A dica de permissão só cabe quando o sistema negou o acesso; sem
+  // microfone nenhum, ou com ele ocupado, ela confundiria.
+  const negado = erro.codigo === 'microfone' && erro.mensagem.includes('autorizado');
+  return negado ? `${erro.mensagem} ${DICA_MICROFONE}` : erro.mensagem;
 }
 
 function rotuloDaSessao(e: EstadoSessao): string {

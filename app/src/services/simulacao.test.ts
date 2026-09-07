@@ -83,7 +83,7 @@ describe('condutorSimulado', () => {
   });
 
   it('não aprofunda em resposta longa', async () => {
-    const longa = 'x'.repeat(120);
+    const longa = 'x'.repeat(160);
     const d = await condutor.decidir(entrada('q01', longa));
     expect(d).toMatchObject({ aprofundar: false, pergunta: null, origem: 'simulacao' });
   });

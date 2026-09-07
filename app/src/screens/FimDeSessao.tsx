@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { IconeAlerta, IconeArquivo, IconeCheque, IconeChequeCirculo, IconePasta } from '../components/Icones';
 import { BLOCOS, FECHAMENTO, resumoDaSessao, sessaoPorNumero } from '../roteiro/roteiro';
 import { formatarDuracao, paraErroApp } from '../shared/tipos';
-import type { Modo, NumeroSessao } from '../shared/tipos';
+import type { NumeroSessao } from '../shared/tipos';
 import type { PropsFimDeSessao, ResultadoSessao } from './contratos';
 import './FimDeSessao.css';
 
@@ -60,14 +60,8 @@ function linhaDaProxima(r: ResultadoSessao): string {
   return `Sessão ${s.numero} — ${s.nome} · ${blocos} · ${resumoDaSessao(s)}`;
 }
 
-/** Modo com que esta execução da sessão começou, segundo o progresso gravado. */
-function modoInicial(r: ResultadoSessao): Modo | null {
-  const gravada = r.progresso.sessoes[r.sessao];
-  return gravada.estado === 'pendente' ? null : gravada.modo;
-}
-
 export function FimDeSessao(props: PropsFimDeSessao): JSX.Element {
-  const { plataforma, info, config, resultado, aoContinuar, aoFechar } = props;
+  const { plataforma, info, resultado, aoContinuar, aoFechar } = props;
   const [tamanho, setTamanho] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
@@ -96,9 +90,9 @@ export function FimDeSessao(props: PropsFimDeSessao): JSX.Element {
   const sessao = sessaoPorNumero(n);
   const proxima = concluida ? proximoNumero(n) : null;
   const cobertos = new Set(resultado.blocosCobertos);
-  // Só se afirma que não houve chamada de voz quando a sessão começou e
-  // terminou em escrita; uma troca no meio invalidaria a frase.
-  const soEscrita = config.modo === 'escrita' && modoInicial(resultado) === 'escrita';
+  // Só se afirma que não houve chamada de voz quando de fato não houve
+  // nenhuma nesta execução — uma troca para voz no meio conta.
+  const soEscrita = !resultado.usouVoz;
 
   return (
     <div className="app">

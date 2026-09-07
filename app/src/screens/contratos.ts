@@ -22,6 +22,8 @@ export interface ResultadoSessao {
   /** Bloco de onde uma sessão incompleta recomeça; igual ao último quando concluída. */
   readonly blocoAtual: string;
   readonly falas: number;
+  /** Houve ao menos uma leitura ou transcrição por voz nesta execução. */
+  readonly usouVoz: boolean;
   /** Progresso já atualizado e gravado em `progresso.json`. */
   readonly progresso: Progresso;
 }

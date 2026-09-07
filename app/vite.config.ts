@@ -12,9 +12,11 @@ function cspDeDesenvolvimento(): Plugin {
     name: 'csp-de-desenvolvimento',
     apply: 'serve',
     transformIndexHtml(html) {
+      // Só dentro do atributo `content` da meta: o comentário do index.html
+      // também contém o texto e a primeira ocorrência era a errada.
       return html.replace(
-        "connect-src 'none'",
-        "connect-src 'self' ws://localhost:5273 http://localhost:5273",
+        /(http-equiv="Content-Security-Policy"[^>]*content="[^"]*?)connect-src 'none'/,
+        "$1connect-src 'self' ws://localhost:5273 http://localhost:5273",
       );
     },
   };

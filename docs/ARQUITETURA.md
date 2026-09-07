@@ -283,7 +283,7 @@ Base URL padrão `https://api.x.ai/v1`, configurável por opção e pela variáv
 - `RESPOSTAS_FICTICIAS: Record<perguntaId, { resposta: string; aprofundamento?: string; respostaAoAprofundamento?: string; escolha?: number }>` —
   as 27 do protótipo (cliente fictícia, advogada de empresas de família), chaveadas por `q01…q26` e `fechamento`.
 - `condutorSimulado()` → `{ decidir }`: aprofunda quando existe `aprofundamento` e a resposta tem
-  menos de 120 caracteres ou quando `forcar`; `origem: 'simulacao'`.
+  menos de 160 caracteres ou quando `forcar`; `origem: 'simulacao'`.
 - `vozSimulada()` → `{ falar(texto, voz): Promise<AudioFalado>; transcrever(...) }`: `falar` devolve um
   WAV mudo curto (proporcional ao tamanho do texto, ~60 ms por palavra, máx. 6 s) gerado em memória;
   `transcrever` devolve a resposta fictícia da **última pergunta lida** — para isso `vozSimulada`

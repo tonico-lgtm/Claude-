@@ -25,7 +25,7 @@ export interface RespostaFicticia {
 const PERGUNTA_GENERICA = 'Pode me dar um exemplo concreto disso?';
 
 /** Abaixo disso a resposta conta como curta e a simulação pede exemplo. */
-const LIMITE_RESPOSTA_CURTA = 120;
+const LIMITE_RESPOSTA_CURTA = 160;
 
 /** Fala simulada: ~60 ms por palavra, entre 0,4 s e 6 s. */
 const SEGUNDOS_POR_PALAVRA = 0.06;
