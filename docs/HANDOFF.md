@@ -142,7 +142,13 @@ Na ordem em que eu faria:
    histórico desta sessão; qualquer revisor pode partir de `docs/ARQUITETURA.md`.
 5. **Empacotamento (macOS):** feito em 2026-09-07 com electron-builder (`app/electron-builder.yml`) e a
    esteira `.github/workflows/empacotar-mac.yml`, que compila num macOS da GitHub e publica DMG e ZIP
-   (app universal) na página de Releases; instruções em §4. O que falta: (a) abrir o `.app` num Mac real
+   (app universal) na página de Releases; instruções em §4. A esteira rodou com sucesso (execução 2,
+   ~3 min; a execução 1 falhou porque o segredo `CSC_LINK` ausente chegava como texto vazio e o
+   electron-builder tentava importá-lo — corrigido) e publicou a Release `v0.1.0-b2`:
+   https://github.com/tonico-lgtm/Claude-/releases/tag/v0.1.0-b2 (DMG e ZIP, ~187 MB cada). O ZIP foi
+   baixado e inspecionado daqui: binário universal (`cafebabe`), `_CodeSignature` presente,
+   `NSMicrophoneUsageDescription`, `CFBundleIdentifier` e `LSMinimumSystemVersion 12.0` no `Info.plist`,
+   `app.asar` e `icon.icns` em `Resources`, nenhum `chaves.local.json`. O que falta: (a) abrir o `.app` num Mac real
    (só o pacote Linux foi exercitado, sob Xvfb); (b) certificado "Developer ID" e notarização — a esteira
    já aceita os segredos `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` e
    `APPLE_TEAM_ID`, caminho ainda não exercitado; sem eles o app sai com assinatura ad hoc e o macOS pede
