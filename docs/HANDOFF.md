@@ -42,10 +42,12 @@ não foi testada com microfone real e **não passou por revisão de código inde
   chaves", o aviso aponta as duas chaves ausentes com o caminho do arquivo e a variável de ambiente, e o
   botão fica desabilitado; em modo escrita só a chave do Claude é cobrada; arquivo com formato errado →
   "não tem o formato esperado" após "Verificar de novo"; arquivo com formato válido → aviso some, botão e
-  amostra de voz habilitam, sem reabrir o app; "Iniciar" com chaves fictícias chegou às duas APIs e voltou
-  "Chave do Claude recusada" / "Chave do Grok recusada" (a rede desta máquina alcança `api.anthropic.com`
-  e `api.x.ai`); o texto das chaves não aparece no DOM do renderer; em simulação, nada é cobrado e a sessão
-  abre. No navegador, idem, sem aviso algum.
+  amostra de voz habilitam, sem reabrir o app; "Iniciar" com chaves fictícias voltou "Chave do Claude
+  recusada" / "Chave do Grok recusada". **Correção posterior:** só a recusa do Claude veio da API
+  (`api.anthropic.com` é alcançado diretamente; a Anthropic devolve `authentication_error`); a do Grok veio
+  do proxy desta sessão, que bloqueia `api.x.ai` (CONNECT 403, "Host not in allowlist") e cujo 403 o
+  serviço interpreta como chave recusada. O texto das chaves não aparece no DOM do renderer; em simulação,
+  nada é cobrado e a sessão abre. No navegador, idem, sem aviso algum.
 - **Fumaça do app empacotado** (2026-09-07; `npm run empacotar:linux`, binário de `release/linux-unpacked`
   sob Xvfb): sobe do `app.asar` (main, preload, renderer, SDK da Anthropic dentro; `chaves.local.json`
   fora); em simulação abre pronto; fora dela aponta `<userData>/Entrevista Twin/chaves.local.json`;
@@ -131,7 +133,12 @@ Na ordem em que eu faria:
 1. **Chamada real ao Grok** com uma chave `xai-`: rodar o app fora da simulação, ler uma pergunta e
    transcrever uma resposta. Conferir em `docs.x.ai` rota, campos (`voice_id`, `language`,
    `output_format`) e a forma da resposta do `/v1/stt`; ajustar `src/services/grok.ts` e os testes.
-   `ENTREVISTA_TWIN_XAI_BASE_URL` sobrescreve a base URL sem tocar no código.
+   `ENTREVISTA_TWIN_XAI_BASE_URL` sobrescreve a base URL sem tocar no código. **Tentativa em
+   2026-09-07 com a chave real do cliente:** bloqueada pelo proxy da sessão de Claude Code (`api.x.ai`
+   fora da lista de egress do ambiente; `api.anthropic.com` é liberado). Para repetir daqui é preciso
+   incluir `api.x.ai` nas permissões de rede do ambiente, em claude.ai/code; o roteiro do teste está
+   pronto (validar a chave, TTS com Helios e Leo, STT com o MP3 devolvido e com WAV 16 kHz mono como o app
+   envia). Alternativa: rodar o app no Mac com a chave em `chaves.local.json` e relatar o que acontecer.
 2. **Chamada real ao Claude** com uma chave `sk-ant-`: confirmar `messages.parse` com `claude-opus-5`,
    medir a latência com `effort: 'low'` e ler algumas decisões para calibrar o prompt de sistema
    (`montarSistema` em `claude.ts`). Avaliar o parâmetro `fallbacks` (beta) para recusas.
