@@ -31,6 +31,12 @@ export interface Plataforma {
      * chamada, para que um arquivo recém-criado valha sem reabrir o app.
      */
     estado(): Promise<EstadoChaves>;
+    /**
+     * Garante que `chaves.local.json` exista no lugar esperado (criando um
+     * modelo com as duas chaves vazias, se preciso) e o abre no editor de
+     * texto do sistema. Devolve o caminho do arquivo.
+     */
+    prepararArquivo(): Promise<string>;
     /** Faz uma chamada mínima a cada API para confirmar que a chave é aceita. */
     validar(motores: readonly Motor[]): Promise<readonly ResultadoValidacaoChave[]>;
   };

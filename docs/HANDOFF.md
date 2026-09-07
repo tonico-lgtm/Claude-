@@ -46,6 +46,11 @@ não foi testada com microfone real e **não passou por revisão de código inde
   "Chave do Claude recusada" / "Chave do Grok recusada" (a rede desta máquina alcança `api.anthropic.com`
   e `api.x.ai`); o texto das chaves não aparece no DOM do renderer; em simulação, nada é cobrado e a sessão
   abre. No navegador, idem, sem aviso algum.
+- **Fumaça do app empacotado** (2026-09-07; `npm run empacotar:linux`, binário de `release/linux-unpacked`
+  sob Xvfb): sobe do `app.asar` (main, preload, renderer, SDK da Anthropic dentro; `chaves.local.json`
+  fora); em simulação abre pronto; fora dela aponta `<userData>/Entrevista Twin/chaves.local.json`;
+  "Abrir o arquivo de chaves" cria o modelo com as duas chaves vazias; JSON quebrado → "não pôde ser lido
+  como JSON"; arquivo com aspas tipográficas e chaves de formato válido → aceito sem reabrir.
 - **Fumaça no Electron real** (Linux, Xvfb, `ENTREVISTA_TWIN_SIMULACAO=1`, Playwright): janela abre;
   `window.entrevistaTwin` expõe exatamente os oito grupos do contrato; `require`, `process` e
   `Buffer` indefinidos no renderer; `fetch` e WebSocket bloqueados pela CSP (`connect-src 'none'`);
@@ -105,7 +110,7 @@ não foi testada com microfone real e **não passou por revisão de código inde
 7. **Modo escrita existe, é prioritário e é alternável a qualquer momento da sessão.** Confirmado pelo cliente em 2026-09-07 ("é prioritário e modo escrita já implementado"). A dúvida do pacote anterior está encerrada.
 8. **Aprofundamento.** Depois de cada resposta à pergunta principal, o Claude decide sozinho se faz a única pergunta de aprofundamento (e a formula). O botão "Aprofundar" força a formulação quando o Claude não aprofundou. Uma vez por resposta, nunca em perguntas com `permiteAprofundamento: false`, nunca depois da resposta ao aprofundamento.
 9. **Sessão incompleta recomeça do bloco onde parou, no mesmo arquivo**, com um marcador de retomada; a contagem "N de M" na tela de fim e no rodapé usa a união das execuções.
-10. **Chaves provisionadas fora da tela, nunca digitadas.** Pedido do cliente em 2026-09-07 ("remover a necessidade de fornecer chaves para iniciar a sessão"). O main lê, a cada uso, as variáveis `ENTREVISTA_TWIN_CLAUDE_KEY` e `ENTREVISTA_TWIN_GROK_KEY` e, na falta delas, o arquivo `chaves.local.json` (primeiro ao lado do `package.json` do app, depois em userData). A primeira fonte com valor vale; formato errado é apontado e não é mascarado por outra fonte (`src/shared/chaves.ts`). O Setup não tem campos de chave: só um aviso com o caminho do arquivo quando falta alguma, e o botão "Verificar de novo". Esta decisão substitui a anterior ("sem keychain, sem chaves", com `safeStorage`): o app não guarda mais chave nenhuma, e `chaves.local.json` está no `.gitignore`. Contrapartida assumida: a chave fica em texto claro num arquivo local do cliente, e não cifrada no keychain.
+10. **Chaves provisionadas fora da tela, nunca digitadas.** Pedido do cliente em 2026-09-07 ("remover a necessidade de fornecer chaves para iniciar a sessão"). O main lê, a cada uso, as variáveis `ENTREVISTA_TWIN_CLAUDE_KEY` e `ENTREVISTA_TWIN_GROK_KEY` e, na falta delas, o arquivo `chaves.local.json` (primeiro ao lado do `package.json` do app, depois em userData). A primeira fonte com valor vale; formato errado é apontado e não é mascarado por outra fonte (`src/shared/chaves.ts`). O Setup não tem campos de chave: só um aviso com o caminho do arquivo quando falta alguma, o botão "Abrir o arquivo de chaves" (cria o modelo com as chaves vazias e o abre no editor do sistema) e o botão "Verificar de novo". A leitura do arquivo tolera BOM e aspas tipográficas; JSON quebrado aparece como "ilegível", não como "não encontrada". Empacotado, o arquivo fica em `~/Library/Application Support/Entrevista Twin/`; em `npm start`, ao lado do `package.json`. Esta decisão substitui a anterior ("sem keychain, sem chaves", com `safeStorage`): o app não guarda mais chave nenhuma, e `chaves.local.json` está no `.gitignore`. Contrapartida assumida: a chave fica em texto claro num arquivo local do cliente, e não cifrada no keychain.
 
 ### Técnicas
 
@@ -135,8 +140,13 @@ Na ordem em que eu faria:
 4. **Revisão de código independente** (pulada em 2026-09-07): motor, controlador (`useSessao`),
    Electron/segurança, serviços, telas e escopo. As dimensões e os critérios estão descritos no
    histórico desta sessão; qualquer revisor pode partir de `docs/ARQUITETURA.md`.
-5. **Empacotamento:** não existe. Escolher electron-builder ou Forge; no macOS, incluir
-   `NSMicrophoneUsageDescription` no `Info.plist` e assinar/notarizar.
+5. **Empacotamento (macOS):** feito em 2026-09-07 com electron-builder (`app/electron-builder.yml`) e a
+   esteira `.github/workflows/empacotar-mac.yml`, que compila num macOS da GitHub e publica DMG e ZIP
+   (app universal) na página de Releases; instruções em §4. O que falta: (a) abrir o `.app` num Mac real
+   (só o pacote Linux foi exercitado, sob Xvfb); (b) certificado "Developer ID" e notarização — a esteira
+   já aceita os segredos `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` e
+   `APPLE_TEAM_ID`, caminho ainda não exercitado; sem eles o app sai com assinatura ad hoc e o macOS pede
+   "Abrir mesmo assim" na primeira abertura; (c) Windows e Linux, se algum dia forem pedidos.
 6. **Decisões pequenas que pedem o cliente:** botão "Reler" quando o TTS falha (hoje: Pausar →
    Retomar relê); esconder "Preencher com exemplo" fora da simulação; desabilitar "Registrar
    resposta" depois de registrar.
@@ -185,6 +195,28 @@ npm start
 
 ---
 
+### Instalar o app no Mac (para o cliente, sem terminal)
+
+1. No GitHub, abrir **Actions › "Empacotar para macOS" › "Run workflow"** (branch `main`) e aguardar
+   uns dez minutos. Só quem tem acesso de escrita ao repositório consegue acionar.
+2. Abrir a página de **Releases** do repositório e baixar o arquivo `Entrevista-Twin-<versão>-universal.dmg`.
+3. Abrir o DMG e arrastar o **Entrevista Twin** para a pasta Aplicativos.
+4. Na primeira abertura, se o macOS disser que não pôde verificar o app, ir a **Ajustes do Sistema ›
+   Privacidade e Segurança** e clicar em **"Abrir mesmo assim"** (uma vez só). Isso desaparece quando
+   houver certificado "Developer ID" e notarização (ver §3, item 5).
+5. Se a tela disser "sem chaves", clicar em **"Abrir o arquivo de chaves"**: o app cria
+   `~/Library/Application Support/Entrevista Twin/chaves.local.json` com as duas chaves vazias e o abre no
+   editor de texto. Colar cada chave entre as aspas, salvar e clicar em **"Verificar de novo"**. O app
+   tolera as aspas tipográficas que o TextEdit costuma inserir.
+6. Na primeira gravação, o macOS pede permissão de microfone.
+
+Alternativa num Mac com Node instalado: `cd app && npm install && npm run empacotar:mac` gera o DMG em
+`app/release/`. Chaves embutidas no pacote (segredos `ENTREVISTA_TWIN_CLAUDE_KEY` e
+`ENTREVISTA_TWIN_GROK_KEY` na esteira) só são gravadas se o repositório for **privado**; num repositório
+público a esteira avisa e não embute, porque a Release seria pública.
+
+---
+
 ## 5. O que este repositório contém
 
 ```
@@ -209,6 +241,9 @@ app/                                   a implementação
   src/hooks/useSessao.ts               controlador da sessão
   src/screens/                         Setup, Sessao, FimDeSessao, contratos
   src/shared/chaves.ts                 provisionamento das chaves (puro, + testes)
+  electron-builder.yml                 empacotamento (macOS universal: DMG e ZIP; Linux dir para validar)
+  build/icon.png, build/entitlements.mac.plist, build/extra/   ícone, entitlements (microfone), chaves injetadas pela esteira
+.github/workflows/empacotar-mac.yml    esteira: compila num macOS da GitHub e publica a Release
   src/components/                      componentes e ícones
   src/styles/global.css                tokens, fontes empacotadas, primitivos
 ```
@@ -228,4 +263,6 @@ app/                                   a implementação
   contratos de `ARQUITETURA.md`; integrou sem erro de tipo e passou nos testes e nas duas fumaças
   completas, mas ninguém o leu de ponta a ponta com olhar adversarial.
 - **Só Linux foi exercitado** (sob Xvfb). macOS e Windows dependem do microfone real.
-- **Sem empacotamento.** `npm start` roda o Electron de desenvolvimento; não há instalador.
+- **O `.app` ainda não foi aberto num Mac real.** A configuração do empacotamento foi validada com o
+  pacote Linux (`npm run empacotar:linux`, app sobe do `app.asar` sob Xvfb); o `.app` sai da esteira num
+  macOS da GitHub. Sem certificado da Apple, a assinatura é ad hoc: o Gatekeeper pede confirmação uma vez.

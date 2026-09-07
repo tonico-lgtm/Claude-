@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { estadoDasChaves, provisionarChaves, valoresDoArquivoDeChaves } from './chaves';
+import { estadoDasChaves, interpretarTextoDeChaves, provisionarChaves, valoresDoArquivoDeChaves } from './chaves';
 
 const CLAUDE_OK = 'sk-ant-api03-Xk9pQ2mL7vR4tY8wZ1aB3cD5eF6gH0jK';
 const GROK_OK = 'xai-7Hq2Lm9Pz4Rt6Vw8Yb1Nc3Df5Gh0Jk2Lm';
@@ -64,5 +64,42 @@ describe('valoresDoArquivoDeChaves', () => {
     expect(valoresDoArquivoDeChaves('texto')).toEqual({});
     expect(valoresDoArquivoDeChaves(['claude'])).toEqual({});
     expect(valoresDoArquivoDeChaves(null)).toEqual({});
+  });
+});
+
+describe('interpretarTextoDeChaves', () => {
+  it('aceita JSON comum', () => {
+    expect(interpretarTextoDeChaves('{"claude": "a", "grok": "b"}')).toEqual({ claude: 'a', grok: 'b' });
+  });
+
+  it('tolera BOM e aspas tipográficas de editor de texto', () => {
+    const texto = '﻿{\n  “claude”: “sk-ant-x”,\n  „grok“: ”xai-y”\n}\n';
+    expect(interpretarTextoDeChaves(texto)).toEqual({ claude: 'sk-ant-x', grok: 'xai-y' });
+  });
+
+  it('devolve null quando não é JSON', () => {
+    expect(interpretarTextoDeChaves('claude = sk-ant-x')).toBeNull();
+    expect(interpretarTextoDeChaves('')).toBeNull();
+  });
+});
+
+describe('fonte ilegível', () => {
+  it('interrompe a busca e aparece como «ilegivel», sem cair na fonte seguinte', () => {
+    const p = provisionarChaves([
+      { nome: 'ambiente', valores: {} },
+      { nome: 'arquivo', valores: {}, ilegivel: true },
+      { nome: 'outro', valores: { claude: CLAUDE_OK } },
+    ]);
+    expect(p.claude).toEqual({ situacao: 'ilegivel', fonte: 'arquivo', chave: null });
+    expect(p.grok.situacao).toBe('ilegivel');
+  });
+
+  it('uma chave já resolvida pelo ambiente não é afetada por arquivo ilegível', () => {
+    const p = provisionarChaves([
+      { nome: 'ambiente', valores: { claude: CLAUDE_OK } },
+      { nome: 'arquivo', valores: {}, ilegivel: true },
+    ]);
+    expect(p.claude.situacao).toBe('presente');
+    expect(p.grok.situacao).toBe('ilegivel');
   });
 });

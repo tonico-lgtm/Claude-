@@ -1,0 +1,69 @@
+# Empacotamento do Entrevista Twin (electron-builder).
+#
+# macOS: `npm run empacotar:mac` num Mac, ou a esteira `.github/workflows/empacotar-mac.yml`,
+# que roda num macOS da GitHub e publica o DMG na página de Releases. Sem certificado
+# "Developer ID" o app sai com assinatura ad hoc: abre, mas na primeira vez o macOS pede
+# confirmação em Ajustes do Sistema › Privacidade e Segurança › "Abrir mesmo assim".
+# Com os segredos de assinatura e notarização presentes, a esteira assina e notariza.
+#
+# Linux: `npm run empacotar:linux` (usado aqui só para validar a configuração).
+
+appId: br.com.monteirodasilva.entrevistatwin
+productName: Entrevista Twin
+copyright: © Antonio Carlos Monteiro da Silva Filho
+directories:
+  output: release
+  buildResources: build
+artifactName: "Entrevista-Twin-${version}-${arch}.${ext}"
+
+# O que entra no app.asar: o build do renderer e do main, mais as dependências de produção.
+files:
+  - dist/**/*
+  - "!dist/**/*.map"
+  - package.json
+asar: true
+
+# `build/extra/` fica vazio no repositório; a esteira pode pôr ali `chaves.local.json`.
+extraResources:
+  - from: build/extra
+    to: .
+    filter:
+      - "**/*"
+      - "!.gitkeep"
+      - "!.gitignore"
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [universal]
+    - target: zip
+      arch: [universal]
+  icon: build/icon.png
+  darkModeSupport: true
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    NSMicrophoneUsageDescription: O Entrevista Twin usa o microfone para ouvir e transcrever as suas respostas durante a entrevista.
+    LSMinimumSystemVersion: "12.0"
+  # Universal: um só app para Macs Intel e Apple Silicon. Os dois asar são idênticos
+  # (não há módulo nativo), então o merge é direto.
+  mergeASARs: true
+
+dmg:
+  title: Entrevista Twin
+  contents:
+    - x: 140
+      y: 200
+    - x: 420
+      y: 200
+      type: link
+      path: /Applications
+
+linux:
+  target:
+    - target: dir
+  icon: build/icon.png
+  category: Office

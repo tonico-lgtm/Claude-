@@ -34,7 +34,7 @@ export function chaveTemFormatoValido(motor: Motor, chave: string): boolean {
  * são digitadas na tela; o main as lê das variáveis de ambiente ou do arquivo
  * local `chaves.local.json` (ver `shared/chaves.ts`).
  */
-export type SituacaoChave = 'ausente' | 'invalida' | 'presente';
+export type SituacaoChave = 'ausente' | 'invalida' | 'ilegivel' | 'presente';
 
 export interface EstadoChaves {
   readonly claude: SituacaoChave;
@@ -257,6 +257,7 @@ export interface InfoSistema {
 
 export const CANAIS = {
   chavesEstado: 'chaves:estado',
+  chavesPrepararArquivo: 'chaves:prepararArquivo',
   chavesValidar: 'chaves:validar',
 
   configLer: 'config:ler',

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <clipPath id="r"><rect x="0" y="0" width="1024" height="1024" rx="228" ry="228"/></clipPath>
+  </defs>
+  <g clip-path="url(#r)">
+    <rect width="1024" height="1024" fill="#16181b"/>
+    <rect x="0" y="0" width="1024" height="1024" fill="none" stroke="#2a2e34" stroke-width="12"/>
+    <!-- Barras de áudio, na paleta âmbar do app -->
+    <g fill="#d9a066">
+      <rect x="236" y="452" width="56" height="120" rx="28"/>
+      <rect x="332" y="372" width="56" height="280" rx="28"/>
+      <rect x="428" y="292" width="56" height="440" rx="28"/>
+      <rect x="524" y="352" width="56" height="320" rx="28"/>
+      <rect x="620" y="412" width="56" height="200" rx="28"/>
+      <rect x="716" y="472" width="56" height="80" rx="28"/>
+    </g>
+    <text x="512" y="866" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="118" fill="#e8e3d9" letter-spacing="6">TWIN</text>
+  </g>
+</svg>

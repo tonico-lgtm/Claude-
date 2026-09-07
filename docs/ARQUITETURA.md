@@ -308,6 +308,12 @@ Base URL padrão `https://api.x.ai/v1`, configurável por opção e pela variáv
   errado é `invalida` e não cai na fonte seguinte. `chaves:estado` devolve só a situação (`ausente` /
   `invalida` / `presente`); em simulação, tudo `presente`. A chave em claro só existe dentro do handler que a
   pediu; nunca vai ao renderer. `InfoSistema.arquivoDeChaves` diz à tela onde procurar o arquivo.
+  Empacotado (`app.isPackaged`), a ordem dos arquivos é `<userData>` e depois `process.resourcesPath`
+  (onde a esteira pode ter injetado as chaves). `chaves:prepararArquivo` cria o arquivo modelo
+  (`{ "claude": "", "grok": "" }`, modo 0600) no primeiro caminho e o abre com `shell.openPath`
+  (ou revela na pasta, se não houver editor). A leitura (`interpretarTextoDeChaves`) tolera BOM e aspas
+  tipográficas; JSON que ainda assim não parseia marca a fonte como `ilegivel`, e essa situação
+  interrompe a busca para aparecer na tela.
 - Config (`<userData>/config.json`): `ConfiguracaoApp`.
 - Destino padrão: `path.join(app.getPath('documents'), 'Entrevista Twin')`. `dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] })`.
 - Transcrição: `fs.promises.appendFile` com `mkdir -p` antes. Progresso: escrita atômica (`tmp` + `rename`).
@@ -366,7 +372,8 @@ Diferenças obrigatórias em relação ao protótipo (vêm do brief v2 e do HAND
 - Botão principal com os rótulos do §2. Abaixo dele, erro de validação real das chaves, se houver.
 - **Sem campos de chave.** Se faltar chave necessária ao modo (Claude sempre; Grok só em voz), um aviso
   abaixo do botão diz qual falta ou está malformada, onde colocá-la (`InfoSistema.arquivoDeChaves` ou a
-  variável de ambiente) e oferece "Verificar de novo", que relê as fontes sem reabrir o app. Cabeçalho:
+  variável de ambiente) e oferece "Abrir o arquivo de chaves" (só no Electron; cria o modelo e o abre no
+  editor) e "Verificar de novo", que relê as fontes sem reabrir o app. Cabeçalho:
   `sem chaves` / `pronto para iniciar` / `entrevista concluída`.
 - Sessão: cabeçalho `SESSÃO 2 DE 3 · Bloco 5 de 8`; barra de progresso mede a sessão atual;
   chips só dos blocos da sessão; rótulo `Pergunta 12 de 26`.
@@ -383,3 +390,26 @@ Diferenças obrigatórias em relação ao protótipo (vêm do brief v2 e do HAND
 
 Destilação, pasta `twin/`, ingestão de documentos, revisão do conteúdo, agentes consumidores, nuvem,
 onboarding, login, métricas. A tela final mostra o caminho do arquivo e nada mais.
+
+---
+
+## 12. Empacotamento (`app/electron-builder.yml`)
+
+- **electron-builder 26.** `appId br.com.monteirodasilva.entrevistatwin`, `productName Entrevista Twin`
+  (também em `package.json`, para que `app.getPath('userData')` seja `…/Entrevista Twin`). Entra no
+  `app.asar`: `dist/**` (renderer e main), `package.json` e as dependências de produção. Saída em
+  `app/release/` (ignorada pelo git).
+- **macOS:** alvo `dmg` + `zip`, arquitetura `universal` (Intel e Apple Silicon num só app; `mergeASARs`).
+  `hardenedRuntime` com `build/entitlements.mac.plist` (microfone, JIT); `NSMicrophoneUsageDescription`
+  via `extendInfo`; ícone `build/icon.png` (1024², convertido pelo electron-builder). `extraResources`
+  copia `build/extra/` para `Contents/Resources` — vazio no repositório; a esteira pode pôr ali
+  `chaves.local.json`.
+- **Esteira** (`.github/workflows/empacotar-mac.yml`, `workflow_dispatch`): `npm ci`, typecheck, testes;
+  sem certificado, `electron-builder --mac dir --universal` com `CSC_IDENTITY_AUTO_DISCOVERY=false`,
+  depois `codesign --force --deep --sign -` (ad hoc; obrigatório para o binário arm64 abrir) e
+  `electron-builder --mac dmg zip --prepackaged`; com `CSC_LINK`/`CSC_KEY_PASSWORD`, o electron-builder
+  assina e, com `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID`, notariza. Publica artefato do
+  workflow e, por padrão, uma Release `v<versão>-b<execução>` com o DMG e o ZIP (`gh release create`).
+- **Por que não empacotar o macOS aqui:** o electron-builder só gera alvos macOS em macOS, e a assinatura
+  (mesmo ad hoc) exige o `codesign` da Apple. O pacote Linux (`npm run empacotar:linux`, alvo `dir`) serve
+  para validar a configuração: o app sobe do asar sob Xvfb.

@@ -34,7 +34,13 @@ import { interpretarProgresso, progressoInicial } from '../src/engine/progresso'
 import { criarCondutor, validarChaveClaude } from '../src/services/claude';
 import { criarVozGrok, validarChaveGrok } from '../src/services/grok';
 import { condutorSimulado, vozSimulada } from '../src/services/simulacao';
-import { MOTORES, estadoDasChaves, provisionarChaves, valoresDoArquivoDeChaves } from '../src/shared/chaves';
+import {
+  MOTORES,
+  estadoDasChaves,
+  interpretarTextoDeChaves,
+  provisionarChaves,
+  valoresDoArquivoDeChaves,
+} from '../src/shared/chaves';
 import type { ChavesProvisionadas, FonteDeChaves } from '../src/shared/chaves';
 import {
   CANAIS,
@@ -248,20 +254,63 @@ const caminhoEmUserData = (nome: string): string => path.join(app.getPath('userD
 // cada uso e a chave em claro só existe dentro do handler que a pediu.
 // ---------------------------------------------------------------------------
 
-/** Onde o app procura o arquivo local; o primeiro é o que a tela mostra. */
+/**
+ * Onde o app procura o arquivo local; o primeiro é o que a tela mostra.
+ * Em desenvolvimento (`npm start`), ao lado do `package.json`. Empacotado, na
+ * pasta de dados do usuário (macOS: `~/Library/Application Support/Entrevista Twin`)
+ * e, como alternativa, dentro do pacote (`Contents/Resources`), onde a esteira
+ * de empacotamento pode ter injetado as chaves.
+ */
 function caminhosDoArquivoDeChaves(): readonly string[] {
+  if (app.isPackaged) {
+    return [caminhoEmUserData(NOME_ARQUIVO_CHAVES_LOCAL), path.join(process.resourcesPath, NOME_ARQUIVO_CHAVES_LOCAL)];
+  }
   return [path.join(app.getAppPath(), NOME_ARQUIVO_CHAVES_LOCAL), caminhoEmUserData(NOME_ARQUIVO_CHAVES_LOCAL)];
+}
+
+/** Lê um arquivo de chaves com tolerância a BOM e aspas tipográficas; ausente → fonte vazia. */
+async function fonteDoArquivoDeChaves(caminho: string): Promise<FonteDeChaves> {
+  let texto: string;
+  try {
+    texto = await fs.readFile(caminho, 'utf-8');
+  } catch (e) {
+    if (ehErroDeArquivoInexistente(e)) return { nome: caminho, valores: {} };
+    throw erroDeDisco(e, `Não foi possível ler ${path.basename(caminho)}.`);
+  }
+  if (texto.trim() === '') return { nome: caminho, valores: {} };
+  const json = interpretarTextoDeChaves(texto);
+  if (json === null) return { nome: caminho, valores: {}, ilegivel: true };
+  return { nome: caminho, valores: valoresDoArquivoDeChaves(json) };
 }
 
 async function fontesDeChaves(): Promise<readonly FonteDeChaves[]> {
   const ambiente: Partial<Record<Motor, unknown>> = {};
   for (const motor of MOTORES) ambiente[motor] = process.env[VARIAVEL_DE_CHAVE[motor]];
   const fontes: FonteDeChaves[] = [{ nome: 'variáveis de ambiente', valores: ambiente }];
-  for (const caminho of caminhosDoArquivoDeChaves()) {
-    // Arquivo ausente ou ilegível como JSON: `lerJson` devolve `undefined` e a fonte fica vazia.
-    fontes.push({ nome: caminho, valores: valoresDoArquivoDeChaves(await lerJson(caminho)) });
-  }
+  for (const caminho of caminhosDoArquivoDeChaves()) fontes.push(await fonteDoArquivoDeChaves(caminho));
   return fontes;
+}
+
+const MODELO_DO_ARQUIVO_DE_CHAVES = '{\n  "claude": "",\n  "grok": ""\n}\n';
+
+/**
+ * Cria `chaves.local.json` no lugar que a tela mostra (se ainda não existir) e
+ * o abre no editor de texto do sistema; sem editor associado, revela o arquivo
+ * na pasta. Pensado para quem não usa terminal.
+ */
+async function prepararArquivoDeChaves(): Promise<string> {
+  const caminho = caminhosDoArquivoDeChaves()[0] ?? caminhoEmUserData(NOME_ARQUIVO_CHAVES_LOCAL);
+  try {
+    await fs.mkdir(path.dirname(caminho), { recursive: true });
+    await fs.writeFile(caminho, MODELO_DO_ARQUIVO_DE_CHAVES, { encoding: 'utf-8', flag: 'wx', mode: 0o600 });
+  } catch (e) {
+    if (!(typeof e === 'object' && e !== null && (e as { code?: string }).code === 'EEXIST')) {
+      throw erroDeDisco(e, `Não foi possível criar ${NOME_ARQUIVO_CHAVES_LOCAL}.`);
+    }
+  }
+  const falha = await shell.openPath(caminho);
+  if (falha !== '') shell.showItemInFolder(caminho);
+  return caminho;
 }
 
 async function chavesProvisionadas(): Promise<ChavesProvisionadas> {
@@ -465,6 +514,7 @@ function registrar(canal: string, handler: Handler): void {
 
 function registrarCanais(): void {
   registrar(CANAIS.chavesEstado, () => estadoAtualDasChaves());
+  registrar(CANAIS.chavesPrepararArquivo, () => prepararArquivoDeChaves());
   registrar(CANAIS.chavesValidar, (motores) =>
     Promise.all(exigirListaDeMotores(motores, 'motores').map((m) => validarChave(m))),
   );

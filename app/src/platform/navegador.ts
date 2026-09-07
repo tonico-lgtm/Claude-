@@ -183,6 +183,10 @@ export function plataformaNavegador(): Plataforma {
   return {
     chaves: {
       estado: async () => CHAVES_SIMULADAS,
+      prepararArquivo: async () => {
+        console.info('[navegador] não há arquivo de chaves fora do Electron');
+        return NOME_ARQUIVO_CHAVES_LOCAL;
+      },
       validar: async (motores) => motores.map((m) => validarChave(m)),
     },
 

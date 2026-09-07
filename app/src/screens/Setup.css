@@ -509,3 +509,7 @@
   color: var(--texto);
   text-wrap: pretty;
 }
+
+.st-chaves__dica {
+  color: var(--texto-2);
+}

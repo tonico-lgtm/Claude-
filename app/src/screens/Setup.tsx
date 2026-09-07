@@ -23,6 +23,8 @@ import './Setup.css';
 
 const NOME_MOTOR: Readonly<Record<Motor, string>> = { claude: 'Claude', grok: 'Grok' };
 
+const ARQUIVO_ILEGIVEL = 'O arquivo de chaves existe, mas não pôde ser lido como JSON: confira aspas, vírgulas e chaves.';
+
 /** Enquanto `chaves.estado()` não responde, tudo conta como ausente. */
 const CHAVES_DESCONHECIDAS: EstadoChaves = { claude: 'ausente', grok: 'ausente' };
 
@@ -31,6 +33,8 @@ export function Setup(props: PropsSetup): JSX.Element {
 
   const [estadoChaves, setEstadoChaves] = useState<EstadoChaves>(CHAVES_DESCONHECIDAS);
   const [verificandoChaves, setVerificandoChaves] = useState(false);
+  /** Caminho do arquivo de chaves depois de "Abrir o arquivo de chaves". */
+  const [arquivoAberto, setArquivoAberto] = useState<string | null>(null);
   const [validando, setValidando] = useState(false);
   /** Falhas da validação real das chaves (ou erro de plataforma), sob o botão. */
   const [avisos, setAvisos] = useState<readonly string[]>([]);
@@ -62,6 +66,15 @@ export function Setup(props: PropsSetup): JSX.Element {
   useEffect(() => {
     void verificarChaves();
   }, [verificarChaves]);
+
+  const abrirArquivoDeChaves = async (): Promise<void> => {
+    try {
+      const caminho = await plataforma.chaves.prepararArquivo();
+      if (montado.current) setArquivoAberto(caminho);
+    } catch (e) {
+      if (montado.current) setAvisos([paraErroApp(e).mensagem]);
+    }
+  };
 
   const escolherPasta = async (): Promise<void> => {
     setErroDestino(null);
@@ -192,7 +205,19 @@ export function Setup(props: PropsSetup): JSX.Element {
                     <span className="aviso__texto">{problema}</span>
                   </div>
                 ))}
+                {arquivoAberto !== null ? (
+                  <div className="aviso__linha">
+                    <span className="aviso__texto st-chaves__dica">
+                      Arquivo aberto no editor: cole cada chave entre as aspas, salve e clique em «Verificar de novo».
+                    </span>
+                  </div>
+                ) : null}
                 <div className="st-chaves__acao">
+                  {info.plataforma === 'electron' ? (
+                    <button type="button" className="botao botao--discreto" onClick={() => void abrirArquivoDeChaves()}>
+                      Abrir o arquivo de chaves
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="botao botao--discreto"
@@ -243,6 +268,8 @@ function descreverProblemas(
     const situacao = estado[motor];
     if (situacao === 'ausente') {
       linhas.push(`Chave do ${NOME_MOTOR[motor]} não encontrada.`);
+    } else if (situacao === 'ilegivel') {
+      if (!linhas.includes(ARQUIVO_ILEGIVEL)) linhas.push(ARQUIVO_ILEGIVEL);
     } else if (situacao === 'invalida') {
       linhas.push(
         `A chave do ${NOME_MOTOR[motor]} não tem o formato esperado (começa com «${PREFIXO_CHAVE[motor]}»).`,
@@ -250,6 +277,10 @@ function descreverProblemas(
     }
   }
   if (linhas.length === 0) return linhas;
+  if (linhas.includes(ARQUIVO_ILEGIVEL)) {
+    linhas.push(`Corrija «${info.arquivoDeChaves}» e verifique de novo.`);
+    return linhas;
+  }
   const variaveis = necessarios.map((m) => VARIAVEL_DE_CHAVE[m]).join(' e ');
   linhas.push(`Coloque-a em «${info.arquivoDeChaves}» (ou na variável de ambiente ${variaveis}) e verifique de novo.`);
   return linhas;
