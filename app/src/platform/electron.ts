@@ -69,8 +69,6 @@ export function plataformaElectron(): Plataforma {
   return {
     chaves: {
       estado: () => chamar(() => ponte.chaves.estado()),
-      guardar: (motor, chave) => chamar(() => ponte.chaves.guardar(motor, chave)),
-      remover: (motor) => chamar(() => ponte.chaves.remover(motor)),
       validar: (motores) => chamar(() => ponte.chaves.validar(motores)),
     },
     config: {

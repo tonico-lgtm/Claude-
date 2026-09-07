@@ -29,13 +29,26 @@ export function chaveTemFormatoValido(motor: Motor, chave: string): boolean {
   return REGEX_CHAVE[motor].test(chave.trim());
 }
 
-/** O renderer nunca vê a chave: só sabe se há uma guardada. */
-export type SituacaoChave = 'ausente' | 'guardada';
+/**
+ * O renderer nunca vê a chave: só sabe se há uma provisionada. As chaves não
+ * são digitadas na tela; o main as lê das variáveis de ambiente ou do arquivo
+ * local `chaves.local.json` (ver `shared/chaves.ts`).
+ */
+export type SituacaoChave = 'ausente' | 'invalida' | 'presente';
 
 export interface EstadoChaves {
   readonly claude: SituacaoChave;
   readonly grok: SituacaoChave;
 }
+
+/** Nome do arquivo local de chaves, ao lado do `package.json` do app (ou em userData). */
+export const NOME_ARQUIVO_CHAVES_LOCAL = 'chaves.local.json';
+
+/** Variáveis de ambiente que também provisionam as chaves; têm precedência sobre o arquivo. */
+export const VARIAVEL_DE_CHAVE: Readonly<Record<Motor, string>> = {
+  claude: 'ENTREVISTA_TWIN_CLAUDE_KEY',
+  grok: 'ENTREVISTA_TWIN_GROK_KEY',
+};
 
 export interface ResultadoValidacaoChave {
   readonly motor: Motor;
@@ -234,6 +247,8 @@ export interface InfoSistema {
   readonly simulada: boolean;
   readonly versaoApp: string;
   readonly so: string;
+  /** Caminho completo onde o app procura `chaves.local.json`; aparece na tela quando falta chave. */
+  readonly arquivoDeChaves: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -242,8 +257,6 @@ export interface InfoSistema {
 
 export const CANAIS = {
   chavesEstado: 'chaves:estado',
-  chavesGuardar: 'chaves:guardar',
-  chavesRemover: 'chaves:remover',
   chavesValidar: 'chaves:validar',
 
   configLer: 'config:ler',

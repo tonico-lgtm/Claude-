@@ -210,8 +210,8 @@ export function FimDeSessao(props: PropsFimDeSessao): JSX.Element {
 
           <p className="fs-nota">
             {soEscrita
-              ? 'As chaves permanecem no keychain do sistema. Durante a sessão, nada além das chamadas de condução saiu desta máquina.'
-              : 'As chaves permanecem no keychain do sistema. Durante a sessão, nada além das chamadas de voz e de condução saiu desta máquina.'}
+              ? 'As chaves permanecem nesta máquina. Durante a sessão, nada além das chamadas de condução saiu daqui.'
+              : 'As chaves permanecem nesta máquina. Durante a sessão, nada além das chamadas de voz e de condução saiu daqui.'}
           </p>
         </main>
       </div>

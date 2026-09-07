@@ -67,10 +67,6 @@
   gap: 12px;
 }
 
-.st-secao--chaves {
-  gap: 18px;
-}
-
 .st-secao--voz {
   transition: opacity 0.2s;
 }
@@ -135,149 +131,6 @@
   font-size: 11px;
   color: var(--texto-2);
   line-height: 1.4;
-}
-
-/* ------------------------------------------------------------------------ */
-/* Chaves de API                                                             */
-/* ------------------------------------------------------------------------ */
-
-.st-chave {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.st-chave__rotulo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-}
-
-.st-chave__desc {
-  color: var(--texto-3);
-}
-
-.st-chave__opcional {
-  margin-left: auto;
-  font-size: 10px;
-  color: var(--texto-3);
-  border: 1px solid var(--linha);
-  padding: 1px 6px;
-  border-radius: 2px;
-}
-
-.st-chave__campo {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 40px;
-  padding: 0 4px 0 12px;
-  background: var(--campo);
-  border-radius: 3px;
-  border: 1px solid var(--linha);
-  transition: border-color 0.15s;
-}
-
-.st-chave__campo--ok {
-  border-color: var(--verde-borda);
-}
-
-.st-chave__campo--erro {
-  border-color: var(--vermelho-borda);
-}
-
-.st-chave__campo input {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: 0;
-  font-size: 13px;
-  color: var(--texto);
-  letter-spacing: 0.02em;
-}
-
-/* Chave guardada: só a máscara; o renderer nunca tem o texto. */
-.st-chave__mascara {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  letter-spacing: 0.12em;
-  color: var(--texto-2);
-  user-select: none;
-}
-
-.st-chave__valida {
-  display: inline-flex;
-  flex: none;
-  color: var(--verde);
-}
-
-.st-chave__olho {
-  width: 32px;
-  height: 32px;
-  flex: none;
-  display: grid;
-  place-items: center;
-  background: transparent;
-  border: 0;
-  border-radius: 3px;
-  color: var(--texto-2);
-}
-
-.st-chave__olho:hover {
-  color: var(--texto);
-  background: var(--painel);
-}
-
-.st-chave__acao {
-  height: 28px;
-  flex: none;
-  padding: 0 10px;
-  display: inline-flex;
-  align-items: center;
-  background: transparent;
-  border: 1px solid var(--linha-forte);
-  border-radius: 3px;
-  font-size: 11.5px;
-  color: var(--texto-2);
-  transition: border-color 0.15s, color 0.15s;
-}
-
-.st-chave__acao:hover:not(:disabled) {
-  color: var(--texto);
-  border-color: var(--texto-2);
-}
-
-.st-chave__acao:disabled {
-  opacity: 0.4;
-}
-
-.st-chave__acao--discreta {
-  border-color: transparent;
-}
-
-.st-chave__dica {
-  font-size: 11.5px;
-  line-height: 1.5;
-  color: var(--texto-3);
-}
-
-.st-chave__dica--ok {
-  color: var(--verde);
-}
-
-.st-chave__dica--erro {
-  color: var(--vermelho);
-}
-
-.st-cadeado {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--texto-3);
-  padding-top: 2px;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -441,6 +294,13 @@
   flex: none;
   color: var(--vermelho);
   padding-top: 2px;
+}
+
+/* Chaves ausentes: o botão de reverificar fecha a faixa, alinhado ao texto. */
+.st-chaves__acao {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 6px;
 }
 
 /* ------------------------------------------------------------------------ */

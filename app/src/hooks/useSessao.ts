@@ -59,7 +59,7 @@ export interface ControleSessao {
   readonly estado: EstadoSessao;
   /** RMS 0..1 do microfone, para as barras de áudio. */
   readonly nivel: number;
-  /** Voz só com chave do Grok guardada (ou em simulação). */
+  /** Voz só com chave do Grok provisionada (ou em simulação). */
   readonly vozDisponivel: boolean;
   despachar(acao: Acao): void;
   readonly acoes: AcoesSessao;
@@ -489,7 +489,7 @@ export function useSessao(props: PropsSessao): ControleSessao {
   // Ações da tela
   // -------------------------------------------------------------------------
 
-  const vozDisponivel = props.info.simulada || chaves?.grok === 'guardada' || estado.modo === 'voz';
+  const vozDisponivel = props.info.simulada || chaves?.grok === 'presente' || estado.modo === 'voz';
 
   const acoes: AcoesSessao = {
     proxima: () => despachar({ tipo: 'proxima', instante: agoraIso() }),

@@ -2,7 +2,7 @@
  * Voz da entrevistadora — Helios e Leo, do catálogo Grok Voice.
  *
  * Cada cartão é um rádio; dentro dele, "Ouvir amostra" pede o TTS da frase de
- * amostra à plataforma (o main usa a chave guardada) e toca o áudio aqui.
+ * amostra à plataforma (o main usa a chave provisionada) e toca o áudio aqui.
  * Como um botão não pode conter outro, o cartão é um `div` com papel de
  * rádio e teclado próprio.
  */
@@ -18,7 +18,7 @@ import { IconeAltoFalante } from './Icones';
 export interface PropsSeletorVoz {
   readonly voz: VozId;
   readonly modo: Modo;
-  /** Só com a chave do Grok guardada a amostra faz sentido. */
+  /** Só com a chave do Grok provisionada a amostra faz sentido. */
   readonly amostraDisponivel: boolean;
   aoMudar(voz: VozId): void;
   /** `plataforma.voz.falar`, passado pelo pai. */
@@ -105,7 +105,7 @@ export function SeletorVoz(props: PropsSeletorVoz): JSX.Element {
                   type="button"
                   className={`st-voz__amostra${tocandoEsta ? ' st-voz__amostra--tocando' : ''}`}
                   disabled={!amostraDisponivel}
-                  title={amostraDisponivel ? `Ouvir uma amostra de ${v.nome}` : 'Guarde a chave do Grok para ouvir a amostra'}
+                  title={amostraDisponivel ? `Ouvir uma amostra de ${v.nome}` : 'A amostra precisa da chave do Grok'}
                   aria-label={`Ouvir amostra da voz ${v.nome}`}
                   onClick={(e) => aoClicarAmostra(e, v.id)}
                 >
@@ -118,7 +118,7 @@ export function SeletorVoz(props: PropsSeletorVoz): JSX.Element {
           );
         })}
       </div>
-      <div className="st-nota">Vozes do catálogo Grok Voice. A amostra usa a chave guardada.</div>
+      <div className="st-nota">Vozes do catálogo Grok Voice. A amostra usa a chave do Grok.</div>
       {erro !== null ? (
         <div className="dica dica--erro" role="alert">
           {erro}
