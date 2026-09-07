@@ -224,9 +224,18 @@ npm start
 6. Na primeira gravação, o macOS pede permissão de microfone.
 
 Alternativa num Mac com Node instalado: `cd app && npm install && npm run empacotar:mac` gera o DMG em
-`app/release/`. Chaves embutidas no pacote (segredos `ENTREVISTA_TWIN_CLAUDE_KEY` e
-`ENTREVISTA_TWIN_GROK_KEY` na esteira) só são gravadas se o repositório for **privado**; num repositório
-público a esteira avisa e não embute, porque a Release seria pública.
+`app/release/`.
+
+**Chaves embutidas no pacote** (decisão do cliente em 2026-09-07: "pode salvar dentro do app"). A esteira
+grava `Contents/Resources/chaves.local.json` a partir dos segredos `ENTREVISTA_TWIN_CLAUDE_KEY` e
+`ENTREVISTA_TWIN_GROK_KEY` (Settings › Secrets and variables › Actions); cada chave presente entra, a
+ausente fica vazia. Só faz isso se o repositório for **privado** (Settings › General › Danger Zone ›
+Change visibility): num repositório público a Release é baixável por qualquer pessoa e a chave iria junto.
+A assinatura ad hoc é feita depois da cópia, então o selo cobre o arquivo. Dentro do app, a ordem de
+leitura é `<userData>/chaves.local.json` e depois `Contents/Resources/chaves.local.json`: um arquivo na
+pasta de dados do usuário sobrepõe o embutido. Em repositório privado, cada execução da esteira consome
+cerca de 30 minutos da cota mensal gratuita do Actions (runner macOS conta 10×); por isso o artefato do
+workflow só é guardado quando não se publica Release.
 
 ---
 

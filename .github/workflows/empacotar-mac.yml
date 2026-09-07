@@ -71,20 +71,23 @@ jobs:
         run: echo "versao=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
       - name: Chaves embutidas (só com os segredos e só em repositório privado)
+        id: chaves
         run: |
-          if [ -n "$CHAVE_CLAUDE" ] && [ -n "$CHAVE_GROK" ]; then
-            if [ "$REPOSITORIO_PRIVADO" = "true" ]; then
-              node -e '
-                const fs = require("node:fs");
-                const conteudo = { claude: process.env.CHAVE_CLAUDE, grok: process.env.CHAVE_GROK };
-                fs.writeFileSync("build/extra/chaves.local.json", JSON.stringify(conteudo, null, 2) + "\n");
-              '
-              echo "Chaves embutidas em build/extra/chaves.local.json."
-            else
-              echo "::warning::Segredos de chaves presentes, mas o repositório é público: as chaves NÃO foram embutidas."
-            fi
-          else
+          echo "embutidas=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$CHAVE_CLAUDE" ] && [ -z "$CHAVE_GROK" ]; then
             echo "Sem segredos de chaves: o app sai sem chaves (o cliente as coloca em chaves.local.json)."
+          elif [ "$REPOSITORIO_PRIVADO" != "true" ]; then
+            echo "::warning::Há segredos de chaves, mas o repositório é público: as chaves NÃO foram embutidas, porque a Release seria pública. Torne o repositório privado e rode de novo."
+          else
+            # Cada chave presente entra; a ausente fica vazia (o app a trata como não provisionada).
+            node -e '
+              const fs = require("node:fs");
+              const conteudo = { claude: process.env.CHAVE_CLAUDE || "", grok: process.env.CHAVE_GROK || "" };
+              fs.writeFileSync("build/extra/chaves.local.json", JSON.stringify(conteudo, null, 2) + "\n");
+            '
+            echo "embutidas=true" >> "$GITHUB_OUTPUT"
+            [ -n "$CHAVE_CLAUDE" ] && echo "Chave do Claude embutida." || echo "::warning::Sem segredo ENTREVISTA_TWIN_CLAUDE_KEY: o app sai sem a chave do Claude."
+            [ -n "$CHAVE_GROK" ] && echo "Chave do Grok embutida." || echo "::warning::Sem segredo ENTREVISTA_TWIN_GROK_KEY: o app sai sem a chave do Grok."
           fi
 
       - name: Modo de assinatura
@@ -132,14 +135,17 @@ jobs:
       - name: Listar o resultado
         run: ls -la release/*.dmg release/*.zip
 
+      # Só quando não se publica Release: o artefato consome a cota de armazenamento do Actions
+      # (500 MB em repositório privado gratuito), e a Release já é o canal de entrega.
       - name: Guardar como artefato do workflow
+        if: ${{ !inputs.publicar }}
         uses: actions/upload-artifact@v4
         with:
           name: entrevista-twin-macos-${{ steps.versao.outputs.versao }}-b${{ github.run_number }}
           path: |
             app/release/*.dmg
             app/release/*.zip
-          retention-days: 30
+          retention-days: 7
           if-no-files-found: error
 
       - name: Publicar Release
@@ -148,6 +154,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: v${{ steps.versao.outputs.versao }}-b${{ github.run_number }}
           MODO: ${{ steps.assinatura.outputs.modo }}
+          EMBUTIDAS: ${{ steps.chaves.outputs.embutidas }}
         run: |
           {
             echo "Entrevista Twin ${{ steps.versao.outputs.versao }}, build ${{ github.run_number }} (macOS, universal: Intel e Apple Silicon)."
@@ -158,7 +165,11 @@ jobs:
               echo "**Primeira abertura:** este build não tem certificado da Apple. Se o macOS disser que não pôde verificar o app, vá a Ajustes do Sistema › Privacidade e Segurança e clique em \"Abrir mesmo assim\"; isso só é preciso uma vez."
             fi
             echo
-            echo "**Chaves de API:** se o app disser \"sem chaves\", clique em \"Abrir o arquivo de chaves\", cole as chaves entre as aspas, salve e clique em \"Verificar de novo\"."
+            if [ "$EMBUTIDAS" = "true" ]; then
+              echo "**Chaves de API:** já estão dentro do app; não há nada a configurar. (Se a tela disser \"sem chaves\", falta algum segredo na esteira.)"
+            else
+              echo "**Chaves de API:** se o app disser \"sem chaves\", clique em \"Abrir o arquivo de chaves\", cole as chaves entre as aspas, salve e clique em \"Verificar de novo\"."
+            fi
             echo
             echo "Commit: ${{ github.sha }}"
           } > notas.md
