@@ -1,0 +1,632 @@
+/*
+ * Tela 2 — Sessão em curso. Valores do protótipo (bloco "Sessão em curso"),
+ * com as cores trocadas pelos tokens de global.css. Prefixo ss-.
+ */
+
+.ss-tela {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--fundo);
+  color: var(--texto);
+}
+
+/* Barra de progresso da sessão (2px). */
+.ss-progresso {
+  height: 2px;
+  flex: none;
+  background: var(--linha);
+}
+
+.ss-progresso__barra {
+  height: 2px;
+  background: var(--ambar);
+  transition: width 0.4s;
+}
+
+/* Cabeçalho ------------------------------------------------------------ */
+
+.ss-separador {
+  width: 1px;
+  height: 16px;
+  background: var(--linha-forte);
+}
+
+.ss-sessao-rotulo {
+  font-size: 12px;
+  color: var(--texto-2);
+}
+
+.ss-estado {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+}
+
+.ss-estado__gravando {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vermelho);
+  display: inline-block;
+  animation: twPulse 1.4s infinite ease-in-out;
+}
+
+.ss-estado__escrita {
+  width: 8px;
+  height: 8px;
+  background: var(--azul);
+  display: inline-block;
+}
+
+.ss-estado__pausado {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ambar);
+  display: inline-block;
+}
+
+.ss-estado__texto {
+  letter-spacing: 0.1em;
+}
+
+.ss-estado__texto--gravando {
+  color: var(--vermelho);
+}
+
+.ss-estado__texto--escrita {
+  color: var(--azul);
+}
+
+.ss-estado__texto--pausado {
+  color: var(--ambar);
+}
+
+.ss-relogio {
+  margin-left: 6px;
+  font-size: 12.5px;
+  color: var(--texto);
+}
+
+/* Alternador voz / escrita. */
+.ss-modos {
+  display: inline-flex;
+  height: 30px;
+  border: 1px solid var(--linha-forte);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ss-modo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 0;
+  font-size: 11px;
+  background: transparent;
+  color: var(--texto-2);
+  transition: background 0.15s, color 0.15s;
+}
+
+.ss-modo + .ss-modo {
+  border-left: 1px solid var(--linha-forte);
+}
+
+.ss-modo:hover:not(:disabled) {
+  background: var(--painel);
+}
+
+.ss-modo[aria-checked='true'] {
+  background: var(--painel);
+  color: var(--texto);
+  box-shadow: inset 0 0 0 1px var(--ambar);
+}
+
+.ss-modo:disabled {
+  opacity: 0.4;
+}
+
+.ss-encerrar {
+  gap: 7px;
+}
+
+.ss-encerrar:hover:not(:disabled) {
+  border-color: var(--texto-2);
+  background: transparent;
+}
+
+/* Corpo ---------------------------------------------------------------- */
+
+.ss-corpo {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+}
+
+.ss-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ss-main__conteudo {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 36px 48px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.ss-bloco-linha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--texto-2);
+}
+
+.ss-tipo {
+  padding: 2px 8px;
+  border: 1px solid var(--linha-forte);
+  border-radius: 2px;
+  color: var(--texto-2);
+}
+
+.ss-tipo--multipla {
+  border-color: var(--azul);
+  color: var(--azul);
+}
+
+.ss-contagem {
+  margin-left: auto;
+}
+
+.ss-pergunta {
+  margin: 0;
+  font-family: var(--serifa);
+  font-weight: 300;
+  font-size: 42px;
+  line-height: 1.2;
+  max-width: 760px;
+  color: var(--texto);
+  text-wrap: pretty;
+}
+
+/* Opções da múltipla escolha. */
+.ss-opcoes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-width: 760px;
+  border-top: 1px solid var(--linha);
+}
+
+.ss-opcoes > li {
+  border-bottom: 1px solid var(--linha);
+}
+
+.ss-opcao {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 11px 0;
+}
+
+.ss-opcao--radio {
+  grid-template-columns: 32px minmax(0, 1fr) 16px;
+  width: 100%;
+  padding: 11px 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  text-align: left;
+  color: var(--texto);
+  transition: background 0.15s;
+}
+
+.ss-opcao--radio:hover:not(:disabled) {
+  background: var(--painel);
+}
+
+.ss-opcao--radio[aria-checked='true'] {
+  box-shadow: inset 0 0 0 1px var(--azul);
+}
+
+.ss-opcao--radio:disabled {
+  cursor: default;
+}
+
+.ss-opcao__letra {
+  font-size: 12px;
+  color: var(--azul);
+}
+
+.ss-opcao__texto {
+  font-family: var(--serifa);
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+/* Card "Claude". */
+.ss-card-claude {
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 760px;
+}
+
+.ss-card-claude__titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ambar);
+}
+
+.ss-card-claude__regra {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--texto-2);
+}
+
+.ss-card-claude__decisao {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--texto-3);
+}
+
+/* Formulário do modo escrita. */
+.ss-escrita {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 760px;
+}
+
+.ss-escrita__rotulo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--texto-2);
+}
+
+.ss-escrita__registrada {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--verde);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.ss-escrita__texto {
+  width: 100%;
+  resize: vertical;
+  min-height: 96px;
+  padding: 12px 14px;
+  background: var(--campo);
+  border: 1px solid var(--linha);
+  border-radius: 3px;
+  font-family: var(--serifa);
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--texto);
+}
+
+.ss-escrita__texto:focus {
+  border-color: var(--azul);
+}
+
+.ss-escrita__acoes {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ss-escrita__exemplo {
+  height: 32px;
+  padding: 0 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  font-size: 11.5px;
+  color: var(--texto-2);
+}
+
+.ss-escrita__exemplo:hover {
+  color: var(--texto);
+}
+
+.ss-escrita__atalho {
+  font-size: 11px;
+  color: var(--texto-3);
+}
+
+.ss-escrita__registrar {
+  padding: 0 16px;
+}
+
+/* Aviso de erro. */
+.ss-aviso {
+  max-width: 760px;
+  align-items: center;
+}
+
+/* Rodapé do main: indicador de áudio (voz) ou nota (escrita). */
+.ss-audio {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.ss-fase {
+  font-size: 12px;
+}
+
+.ss-fase--azul {
+  color: var(--azul);
+}
+
+.ss-fase--ambar {
+  color: var(--ambar);
+}
+
+.ss-fase--neutra {
+  color: var(--texto-3);
+}
+
+.ss-motor {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--texto-3);
+}
+
+.ss-motor__ponto {
+  width: 6px;
+  height: 6px;
+  background: var(--azul);
+  display: inline-block;
+}
+
+.ss-rodape-escrita {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 8px;
+  font-size: 12px;
+  color: var(--texto-3);
+}
+
+.ss-rodape-escrita__nota {
+  margin-left: auto;
+  font-size: 11px;
+}
+
+/* Barras de áudio. */
+.ss-barras {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+}
+
+.ss-barras__nivel {
+  display: inline-flex;
+  align-items: center;
+  transform-origin: center;
+  transition: transform 0.08s linear;
+}
+
+.ss-barras__barra {
+  width: 3px;
+  display: inline-block;
+  background: var(--texto-3);
+  transform-origin: center;
+  transform: scaleY(0.25);
+  opacity: 0.45;
+  animation-name: twBar;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-play-state: paused;
+  transition: background 0.2s;
+}
+
+.ss-barras__barra--ativa {
+  animation-play-state: running;
+  opacity: 1;
+}
+
+.ss-barras--falando .ss-barras__barra {
+  background: var(--azul);
+}
+
+.ss-barras--ouvindo .ss-barras__barra {
+  background: var(--ambar);
+}
+
+/* Controles. */
+.ss-controles {
+  flex: none;
+  border-top: 1px solid var(--linha);
+  padding: 14px 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ss-proxima {
+  padding: 0 16px;
+}
+
+/* Coluna lateral ------------------------------------------------------- */
+
+.ss-aside {
+  border-left: 1px solid var(--linha);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--painel);
+}
+
+.ss-transcricao__cabecalho {
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--linha);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--texto-2);
+}
+
+.ss-transcricao__contagem {
+  margin-left: auto;
+  font-size: 10.5px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--texto-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.ss-transcricao__lista {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ss-fala {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.ss-fala__carimbo {
+  font-size: 10.5px;
+  color: var(--texto-3);
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+}
+
+.ss-fala__corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ss-fala__quem {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--texto-2);
+}
+
+.ss-fala__quem--entrevistadora {
+  color: var(--azul);
+}
+
+.ss-fala__texto--entrevistadora {
+  font-family: var(--serifa);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--texto-2);
+}
+
+.ss-fala__texto--cliente {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--texto);
+}
+
+.ss-fala__transcrevendo {
+  font-size: 11.5px;
+  color: var(--ambar);
+}
+
+/* Chips dos blocos. */
+.ss-blocos {
+  flex: none;
+  border-top: 1px solid var(--linha);
+  padding: 14px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ss-blocos__rotulo {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--texto-3);
+}
+
+.ss-blocos__lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ss-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border-radius: 3px;
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid var(--linha);
+  color: var(--texto-3);
+  transition: background 0.15s;
+}
+
+.ss-chip:hover:not(:disabled) {
+  background: var(--fundo);
+}
+
+.ss-chip--concluido {
+  border-color: var(--linha-forte);
+  color: var(--texto-2);
+}
+
+.ss-chip--atual {
+  border-color: var(--ambar);
+  color: var(--texto);
+}
+
+/* Diálogo de encerramento. */
+.ss-dialogo__botao {
+  height: 34px;
+}
